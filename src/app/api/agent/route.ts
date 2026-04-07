@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { auth } from '@clerk/nextjs/server'
 import { runAlexAgent, AlexContext } from '@/lib/agents/alex'
 import { FakeHRISAdapter } from '@/lib/adapters/hris/fake'
 import { FakeDeviceAdapter } from '@/lib/adapters/device/fake'
@@ -10,9 +9,6 @@ const devices = new FakeDeviceAdapter()
 
 export async function POST(req: NextRequest) {
   try {
-    const { userId } = auth()
-    if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-
     const { messages, employeeId, sessionId, phase, collectedPreferences } = await req.json()
 
     const employee = await hris.getEmployee(employeeId)

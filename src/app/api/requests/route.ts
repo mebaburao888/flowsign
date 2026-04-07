@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { auth } from '@clerk/nextjs/server'
 import {
   submitStandardRequest,
   submitExceptionRequest,
@@ -9,9 +8,6 @@ import {
 
 export async function POST(req: NextRequest) {
   try {
-    const { userId } = auth()
-    if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-
     const body = await req.json()
     const { action } = body
 
@@ -62,9 +58,6 @@ export async function POST(req: NextRequest) {
 
 export async function GET(req: NextRequest) {
   try {
-    const { userId } = auth()
-    if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-
     const { supabaseAdmin } = await import('@/lib/supabase')
     const { searchParams } = new URL(req.url)
     const type = searchParams.get('type')
