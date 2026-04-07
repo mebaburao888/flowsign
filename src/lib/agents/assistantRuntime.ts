@@ -33,6 +33,15 @@ interface HandoffPayload {
   preferences?: Record<string, unknown>
 }
 
+interface DevicePreferences {
+  ide?: string
+  terminal?: string
+  claudeCode?: boolean
+  peripherals?: string[]
+  additionalApps?: string[]
+  deliveryMethod?: 'ship_home' | 'office_pickup'
+}
+
 interface ITDecision {
   requestType: 'standard' | 'exception'
   status: 'approved' | 'pending_approvals'
@@ -188,16 +197,13 @@ export async function processOnboardingTurn(input: {
     throw new Error('IT assistant did not return structured result')
   }
 
-  const preferences = (handoff.preferences ?? input.collectedPreferences ?? {}) as {
-    ide?: string
-    terminal?: string
-    claudeCode?: boolean
-    peripherals?: string[]
-    additionalApps?: string[]
-    deliveryMethod?: 'ship_home' | 'office_pickup'
-  }
+  const preferences = (handoff.preferences ?? input.collectedPreferences ?? {}) as DevicePreferences
+  const exceptionDevice = decision.exceptionDevice ?? handoff.exceptionDevice
+  const requestedApps = preferences.additionalApps ?? []
+  const looksStandard = !exceptionDevice || exceptionDevice.trim().toLowerCase() === standardConfig.deviceModel.trim().toLowerCase()
+  const shouldForceStandard = handoff.requestType === 'standard' || (looksStandard && !handoff.justification)
 
-  if (decision.requestType === 'standard') {
+  if (shouldForceStandard) {
     const result = await submitStandardRequest(input.employeeId, input.sessionId, preferences, standardConfig)
     if (activeTask?.task_type === 'device_setup') {
       await updateTaskStatus(activeTask.id, 'done', {
@@ -206,7 +212,7 @@ export async function processOnboardingTurn(input: {
       })
     }
     return {
-      reply: `${decision.employeeMessage}\n\nReference: ${result.ticketNumber}`,
+      reply: `Perfect — I’ve passed your standard ${standardConfig.deviceModel} setup to IT${requestedApps.length ? ` with ${requestedApps.join(', ')} added` : ''}.\n\nReference: ${result.ticketNumber}`,
       onboardingThreadId,
       itThreadId,
     }
@@ -217,7 +223,7 @@ export async function processOnboardingTurn(input: {
     input.sessionId,
     preferences,
     decision.justification ?? handoff.justification ?? 'Needs non-standard setup',
-    decision.exceptionDevice ?? handoff.exceptionDevice ?? 'MacBook Pro 16" M3 Max'
+    exceptionDevice ?? 'MacBook Pro 16" M3 Max'
   )
 
   if (activeTask?.task_type === 'device_setup') {
