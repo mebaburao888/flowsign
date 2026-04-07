@@ -5,7 +5,9 @@
 import Anthropic from '@anthropic-ai/sdk'
 import { Employee, DeviceStandard } from '../adapters/types'
 
-const client = new Anthropic()
+const client = new Anthropic({
+  apiKey: process.env.ANTHROPIC_API_KEY?.trim(),
+})
 
 export interface Message {
   role: 'user' | 'assistant'

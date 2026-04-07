@@ -6,9 +6,9 @@
 import { Resend } from 'resend'
 import { EmailAdapter, Employee, DeviceRequest } from '../types'
 
-const resend = new Resend(process.env.RESEND_API_KEY)
-const FROM = process.env.RESEND_FROM_EMAIL ?? 'onboarding@resend.dev'
-const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000'
+const resend = new Resend(process.env.RESEND_API_KEY?.trim())
+const FROM = process.env.RESEND_FROM_EMAIL?.trim() ?? 'onboarding@resend.dev'
+const APP_URL = process.env.NEXT_PUBLIC_APP_URL?.trim() ?? 'http://localhost:3000'
 
 export class ResendEmailAdapter implements EmailAdapter {
   async sendWelcome(employee: Employee): Promise<void> {
