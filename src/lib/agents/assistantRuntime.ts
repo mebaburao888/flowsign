@@ -1,6 +1,7 @@
 import { initSession, submitExceptionRequest, submitStandardRequest } from './orchestrator'
 import { FakeHRISAdapter } from '../adapters/hris/fake'
 import { FakeDeviceAdapter } from '../adapters/device/fake'
+import { getActiveTask, getPendingTasks, updateTaskStatus } from '../tasks'
 
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY?.trim()
 const ONBOARDING_ASSISTANT_ID = process.env.OPENAI_ONBOARDING_ASSISTANT_ID?.trim()
@@ -138,15 +139,18 @@ export async function processOnboardingTurn(input: {
   const employee = await hris.getEmployee(input.employeeId)
   const standardConfig = await devices.getStandardConfig(employee.team, employee.role)
   const stockStatus = await devices.checkStock('MacBook Pro 16" M3 Max')
+  const pendingTasks = await getPendingTasks(input.employeeId)
+  const activeTask = await getActiveTask(input.employeeId)
   const onboardingThreadId = await ensureThread(input.onboardingThreadId)
   const itThreadId = await ensureThread(input.itThreadId)
 
   const latestUser = input.messages.filter(m => m.role === 'user').at(-1)?.content ?? 'Start onboarding.'
+  const previousTurns = input.messages.slice(-6).map(m => `${m.role}: ${m.content}`).join('\n')
 
   await addMessage(
     onboardingThreadId,
     'user',
-    `Employee context:\n- Name: ${employee.name}\n- Role: ${employee.role}\n- Team: ${employee.team}\n- Start date: ${employee.startDate}\n- Location: ${employee.location}\n- Standard device: ${standardConfig.deviceModel}\n- Standard apps: ${standardConfig.standardApps.join(', ')}\n- Non-standard stock: ${stockStatus.inStock ? 'in stock' : `out of stock, ${stockStatus.procurementDays} day delay`}\n\nLatest employee message: ${latestUser}\n\nIf the employee is ready for IT handoff, include a JSON object inside <handoff></handoff> with keys: ready, requestType, employeeId, justification, exceptionDevice, preferences. If not ready, do not emit handoff tags.`
+    `Employee context:\n- Name: ${employee.name}\n- Role: ${employee.role}\n- Team: ${employee.team}\n- Start date: ${employee.startDate}\n- Location: ${employee.location}\n- Manager: ${employee.managerName ?? 'Unknown'}\n\nOnboarding tasks:\n${pendingTasks.map((task, index) => `${index + 1}. ${task.title} (${task.task_type}) - ${task.status}${task.description ? `: ${task.description}` : ''}`).join('\n') || 'No pending tasks'}\n\nCurrent active task: ${activeTask?.title ?? 'None'}\n\nDevice context for device_setup only:\n- Standard device: ${standardConfig.deviceModel}\n- Standard apps: ${standardConfig.standardApps.join(', ')}\n- Non-standard stock: ${stockStatus.inStock ? 'in stock' : `out of stock, ${stockStatus.procurementDays} day delay`}\n\nRecent conversation:\n${previousTurns || 'No prior conversation'}\n\nLatest employee message: ${latestUser}\n\nBehavior requirements for this turn:\n- Start from pending onboarding tasks, not from a device spec dump.\n- If the employee is already in the device_setup task, only ask for the single next missing thing.\n- Do not re-ask settled questions.\n- Keep the reply natural and concise.\n- If the employee is ready for IT handoff, include a JSON object inside <handoff></handoff> with keys: ready, requestType, employeeId, justification, exceptionDevice, preferences. If not ready, do not emit handoff tags.`
   )
 
   await runAssistant(onboardingThreadId, ONBOARDING_ASSISTANT_ID)
@@ -195,6 +199,12 @@ export async function processOnboardingTurn(input: {
 
   if (decision.requestType === 'standard') {
     const result = await submitStandardRequest(input.employeeId, input.sessionId, preferences, standardConfig)
+    if (activeTask?.task_type === 'device_setup') {
+      await updateTaskStatus(activeTask.id, 'done', {
+        completedBy: 'onboarding_agent',
+        ticketNumber: result.ticketNumber,
+      })
+    }
     return {
       reply: `${decision.employeeMessage}\n\nReference: ${result.ticketNumber}`,
       onboardingThreadId,
@@ -209,6 +219,13 @@ export async function processOnboardingTurn(input: {
     decision.justification ?? handoff.justification ?? 'Needs non-standard setup',
     decision.exceptionDevice ?? handoff.exceptionDevice ?? 'MacBook Pro 16" M3 Max'
   )
+
+  if (activeTask?.task_type === 'device_setup') {
+    await updateTaskStatus(activeTask.id, 'in_progress', {
+      escalatedTo: 'it_agent',
+      exceptionTicket: result.exceptionTicket,
+    })
+  }
 
   return {
     reply: `${decision.employeeMessage}\n\nException ticket: ${result.exceptionTicket}`,
