@@ -2,12 +2,9 @@
 // Alex Agent — Conversational Onboarding
 // ─────────────────────────────────────
 
-import Anthropic from '@anthropic-ai/sdk'
 import { Employee, DeviceStandard } from '../adapters/types'
 
-const client = new Anthropic({
-  apiKey: process.env.ANTHROPIC_API_KEY?.trim(),
-})
+const OPENAI_API_KEY = process.env.OPENAI_API_KEY?.trim()
 
 export interface Message {
   role: 'user' | 'assistant'
@@ -39,19 +36,37 @@ export async function runAlexAgent(
   const systemPrompt = buildSystemPrompt(context)
 
   try {
-    const response = await client.messages.create({
-      model: 'claude-sonnet-4-20250514',
-      max_tokens: 1024,
-      system: systemPrompt,
-      messages: messages.map(m => ({
-        role: m.role,
-        content: m.content,
-      })),
+    if (!OPENAI_API_KEY) throw new Error('Missing OPENAI_API_KEY')
+
+    const response = await fetch('https://api.openai.com/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${OPENAI_API_KEY}`,
+      },
+      body: JSON.stringify({
+        model: 'gpt-4o',
+        temperature: 0.4,
+        max_tokens: 500,
+        messages: [
+          { role: 'system', content: systemPrompt },
+          ...messages.map(m => ({ role: m.role, content: m.content })),
+        ],
+      }),
     })
 
-    return response.content[0].type === 'text' ? response.content[0].text : ''
+    if (!response.ok) {
+      const errorText = await response.text()
+      throw new Error(`OpenAI error ${response.status}: ${errorText}`)
+    }
+
+    const data = await response.json() as {
+      choices?: Array<{ message?: { content?: string } }>
+    }
+
+    return data.choices?.[0]?.message?.content?.trim() ?? ''
   } catch (error) {
-    console.error('Anthropic unavailable, falling back to demo agent:', error)
+    console.error('OpenAI unavailable, falling back to demo agent:', error)
     return runDemoFallback(messages, context)
   }
 }
