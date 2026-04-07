@@ -13,6 +13,8 @@ interface Message {
 interface SessionData {
   employeeId: string
   sessionId: string
+  onboardingThreadId?: string
+  itThreadId?: string
   standardConfig: {
     deviceModel: string
     deviceSpec: Record<string, string>
@@ -77,6 +79,8 @@ export default function OnboardingPage() {
       setSession({
         employeeId: EMPLOYEE_ID,
         sessionId: initData.session.id,
+        onboardingThreadId: initData.onboardingThreadId,
+        itThreadId: initData.itThreadId,
         standardConfig: initData.standardConfig,
       })
 
@@ -118,10 +122,20 @@ export default function OnboardingPage() {
           sessionId: sessionId ?? session?.sessionId,
           phase,
           collectedPreferences: preferences,
+          onboardingThreadId: sessionId ? session?.onboardingThreadId : undefined,
+          itThreadId: sessionId ? session?.itThreadId : undefined,
         }),
       })
       const data = await res.json()
       const reply = data.reply as string
+
+      if (data.onboardingThreadId || data.itThreadId) {
+        setSession(prev => prev ? {
+          ...prev,
+          onboardingThreadId: data.onboardingThreadId ?? prev.onboardingThreadId,
+          itThreadId: data.itThreadId ?? prev.itThreadId,
+        } : prev)
+      }
 
       const newMessages = [...msgs, {
         role: 'assistant' as const,

@@ -1,0 +1,218 @@
+import { initSession, submitExceptionRequest, submitStandardRequest } from './orchestrator'
+import { FakeHRISAdapter } from '../adapters/hris/fake'
+import { FakeDeviceAdapter } from '../adapters/device/fake'
+
+const OPENAI_API_KEY = process.env.OPENAI_API_KEY?.trim()
+const ONBOARDING_ASSISTANT_ID = process.env.OPENAI_ONBOARDING_ASSISTANT_ID?.trim()
+const IT_ASSISTANT_ID = process.env.OPENAI_IT_ASSISTANT_ID?.trim()
+
+const hris = new FakeHRISAdapter()
+const devices = new FakeDeviceAdapter()
+
+export interface ChatMessage {
+  role: 'user' | 'assistant'
+  content: string
+}
+
+interface ThreadResponse { id: string }
+interface RunResponse { id: string; status: string }
+interface MessageListResponse {
+  data: Array<{
+    role: 'assistant' | 'user'
+    content: Array<{ type: string; text?: { value: string } }>
+  }>
+}
+
+interface HandoffPayload {
+  ready: boolean
+  requestType: 'standard' | 'exception'
+  employeeId: string
+  justification?: string
+  exceptionDevice?: string
+  preferences?: Record<string, unknown>
+}
+
+interface ITDecision {
+  requestType: 'standard' | 'exception'
+  status: 'approved' | 'pending_approvals'
+  summary: string
+  employeeMessage: string
+  justification?: string
+  exceptionDevice?: string
+}
+
+async function openai<T>(path: string, init?: RequestInit): Promise<T> {
+  if (!OPENAI_API_KEY) throw new Error('Missing OPENAI_API_KEY')
+
+  const res = await fetch(`https://api.openai.com/v1${path}`, {
+    ...init,
+    headers: {
+      Authorization: `Bearer ${OPENAI_API_KEY}`,
+      'Content-Type': 'application/json',
+      'OpenAI-Beta': 'assistants=v2',
+      ...(init?.headers ?? {}),
+    },
+  })
+
+  if (!res.ok) {
+    throw new Error(`OpenAI ${path} failed: ${res.status} ${await res.text()}`)
+  }
+
+  return res.json() as Promise<T>
+}
+
+async function ensureThread(threadId?: string) {
+  if (threadId) return threadId
+  const thread = await openai<ThreadResponse>('/threads', { method: 'POST', body: '{}' })
+  return thread.id
+}
+
+async function addMessage(threadId: string, role: 'user' | 'assistant', content: string) {
+  await openai(`/threads/${threadId}/messages`, {
+    method: 'POST',
+    body: JSON.stringify({ role, content }),
+  })
+}
+
+async function runAssistant(threadId: string, assistantId: string, instructions?: string) {
+  const run = await openai<RunResponse>(`/threads/${threadId}/runs`, {
+    method: 'POST',
+    body: JSON.stringify({ assistant_id: assistantId, instructions }),
+  })
+
+  let status = run.status
+  for (let i = 0; i < 60; i++) {
+    if (['completed', 'failed', 'cancelled', 'expired'].includes(status)) break
+    await new Promise(resolve => setTimeout(resolve, 1000))
+    const polled = await openai<RunResponse>(`/threads/${threadId}/runs/${run.id}`)
+    status = polled.status
+  }
+
+  if (status !== 'completed') {
+    throw new Error(`Assistant run ended with status ${status}`)
+  }
+}
+
+async function getLatestAssistantText(threadId: string) {
+  const messages = await openai<MessageListResponse>(`/threads/${threadId}/messages`)
+  const assistantMessage = messages.data.find(m => m.role === 'assistant')
+  const textPart = assistantMessage?.content.find(c => c.type === 'text')
+  return textPart?.text?.value?.trim() ?? ''
+}
+
+function extractJsonBlock<T>(text: string, tag: string): T | null {
+  const regex = new RegExp(`<${tag}>([\\s\\S]*?)<\/${tag}>`)
+  const match = text.match(regex)
+  if (!match) return null
+  try {
+    return JSON.parse(match[1]) as T
+  } catch {
+    return null
+  }
+}
+
+export async function initializeAssistantSession(employeeId: string) {
+  const init = await initSession(employeeId)
+  const onboardingThreadId = await ensureThread()
+  const itThreadId = await ensureThread()
+
+  return {
+    ...init,
+    onboardingThreadId,
+    itThreadId,
+  }
+}
+
+export async function processOnboardingTurn(input: {
+  employeeId: string
+  sessionId: string
+  onboardingThreadId?: string
+  itThreadId?: string
+  messages: ChatMessage[]
+  collectedPreferences?: Record<string, unknown>
+}) {
+  if (!ONBOARDING_ASSISTANT_ID || !IT_ASSISTANT_ID) {
+    throw new Error('Missing assistant IDs')
+  }
+
+  const employee = await hris.getEmployee(input.employeeId)
+  const standardConfig = await devices.getStandardConfig(employee.team, employee.role)
+  const stockStatus = await devices.checkStock('MacBook Pro 16" M3 Max')
+  const onboardingThreadId = await ensureThread(input.onboardingThreadId)
+  const itThreadId = await ensureThread(input.itThreadId)
+
+  const latestUser = input.messages.filter(m => m.role === 'user').at(-1)?.content ?? 'Start onboarding.'
+
+  await addMessage(
+    onboardingThreadId,
+    'user',
+    `Employee context:\n- Name: ${employee.name}\n- Role: ${employee.role}\n- Team: ${employee.team}\n- Start date: ${employee.startDate}\n- Location: ${employee.location}\n- Standard device: ${standardConfig.deviceModel}\n- Standard apps: ${standardConfig.standardApps.join(', ')}\n- Non-standard stock: ${stockStatus.inStock ? 'in stock' : `out of stock, ${stockStatus.procurementDays} day delay`}\n\nLatest employee message: ${latestUser}\n\nIf the employee is ready for IT handoff, include a JSON object inside <handoff></handoff> with keys: ready, requestType, employeeId, justification, exceptionDevice, preferences. If not ready, do not emit handoff tags.`
+  )
+
+  await runAssistant(onboardingThreadId, ONBOARDING_ASSISTANT_ID)
+  const onboardingReply = await getLatestAssistantText(onboardingThreadId)
+  const handoff = extractJsonBlock<HandoffPayload>(onboardingReply, 'handoff')
+
+  if (!handoff?.ready) {
+    return {
+      reply: onboardingReply.replace(/<handoff>[\s\S]*<\/handoff>/, '').trim(),
+      onboardingThreadId,
+      itThreadId,
+    }
+  }
+
+  await addMessage(
+    itThreadId,
+    'user',
+    `Process this onboarding handoff and return only JSON inside <it_result></it_result>.\n${JSON.stringify({
+      employeeId: handoff.employeeId,
+      requestType: handoff.requestType,
+      justification: handoff.justification,
+      exceptionDevice: handoff.exceptionDevice,
+      preferences: handoff.preferences ?? input.collectedPreferences ?? {},
+      standardDevice: standardConfig.deviceModel,
+      standardApps: standardConfig.standardApps,
+      stockStatus,
+    }, null, 2)}\n\nThe JSON must include keys: requestType, status, summary, employeeMessage, justification, exceptionDevice.`
+  )
+
+  await runAssistant(itThreadId, IT_ASSISTANT_ID)
+  const itReply = await getLatestAssistantText(itThreadId)
+  const decision = extractJsonBlock<ITDecision>(itReply, 'it_result')
+
+  if (!decision) {
+    throw new Error('IT assistant did not return structured result')
+  }
+
+  const preferences = (handoff.preferences ?? input.collectedPreferences ?? {}) as {
+    ide?: string
+    terminal?: string
+    claudeCode?: boolean
+    peripherals?: string[]
+    additionalApps?: string[]
+    deliveryMethod?: 'ship_home' | 'office_pickup'
+  }
+
+  if (decision.requestType === 'standard') {
+    const result = await submitStandardRequest(input.employeeId, input.sessionId, preferences, standardConfig)
+    return {
+      reply: `${decision.employeeMessage}\n\nReference: ${result.ticketNumber}`,
+      onboardingThreadId,
+      itThreadId,
+    }
+  }
+
+  const result = await submitExceptionRequest(
+    input.employeeId,
+    input.sessionId,
+    preferences,
+    decision.justification ?? handoff.justification ?? 'Needs non-standard setup',
+    decision.exceptionDevice ?? handoff.exceptionDevice ?? 'MacBook Pro 16" M3 Max'
+  )
+
+  return {
+    reply: `${decision.employeeMessage}\n\nException ticket: ${result.exceptionTicket}`,
+    onboardingThreadId,
+    itThreadId,
+  }
+}

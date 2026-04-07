@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { initSession } from '@/lib/agents/orchestrator'
+import { initializeAssistantSession } from '@/lib/agents/assistantRuntime'
 
 export async function POST(req: NextRequest) {
   try {
     const { employeeId } = await req.json()
-    const result = await initSession(employeeId)
+    const result = await initializeAssistantSession(employeeId)
     return NextResponse.json(result)
   } catch (error) {
     console.error('Init error:', error)

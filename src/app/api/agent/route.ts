@@ -1,43 +1,36 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { runAlexAgent, AlexContext } from '@/lib/agents/alex'
-import { FakeHRISAdapter } from '@/lib/adapters/hris/fake'
-import { FakeDeviceAdapter } from '@/lib/adapters/device/fake'
+import { processOnboardingTurn } from '@/lib/agents/assistantRuntime'
 import { supabaseAdmin } from '@/lib/supabase'
-
-const hris = new FakeHRISAdapter()
-const devices = new FakeDeviceAdapter()
 
 export async function POST(req: NextRequest) {
   try {
-    const { messages, employeeId, sessionId, phase, collectedPreferences } = await req.json()
+    const { messages, employeeId, sessionId, collectedPreferences, onboardingThreadId, itThreadId } = await req.json()
 
-    const employee = await hris.getEmployee(employeeId)
-    const standardConfig = await devices.getStandardConfig(employee.team, employee.role)
-    const stockStatus = await devices.checkStock('MacBook Pro 16" M3 Max')
-
-    const context: AlexContext = {
-      employee,
-      standardConfig,
-      stockStatus,
-      phase: phase ?? 'confirm',
+    const result = await processOnboardingTurn({
+      messages,
+      employeeId,
+      sessionId,
       collectedPreferences: collectedPreferences ?? {},
-    }
+      onboardingThreadId,
+      itThreadId,
+    })
 
-    const reply = await runAlexAgent(messages, context)
-
-    // Save conversation to session
     await supabaseAdmin
       .from('onboarding_sessions')
       .update({
-        conversation: messages.concat({ role: 'assistant', content: reply }),
-        preferences: collectedPreferences ?? {},
+        conversation: messages.concat({ role: 'assistant', content: result.reply }),
+        preferences: {
+          ...(collectedPreferences ?? {}),
+          onboardingThreadId: result.onboardingThreadId,
+          itThreadId: result.itThreadId,
+        },
         updated_at: new Date().toISOString(),
       })
       .eq('id', sessionId)
 
-    return NextResponse.json({ reply })
+    return NextResponse.json(result)
   } catch (error) {
-    console.error('Alex agent error:', error)
+    console.error('Assistant runtime error:', error)
     return NextResponse.json({ error: 'Agent error' }, { status: 500 })
   }
 }
