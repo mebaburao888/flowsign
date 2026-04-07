@@ -38,17 +38,46 @@ export async function runAlexAgent(
 ): Promise<string> {
   const systemPrompt = buildSystemPrompt(context)
 
-  const response = await client.messages.create({
-    model: 'claude-sonnet-4-20250514',
-    max_tokens: 1024,
-    system: systemPrompt,
-    messages: messages.map(m => ({
-      role: m.role,
-      content: m.content,
-    })),
-  })
+  try {
+    const response = await client.messages.create({
+      model: 'claude-sonnet-4-20250514',
+      max_tokens: 1024,
+      system: systemPrompt,
+      messages: messages.map(m => ({
+        role: m.role,
+        content: m.content,
+      })),
+    })
 
-  return response.content[0].type === 'text' ? response.content[0].text : ''
+    return response.content[0].type === 'text' ? response.content[0].text : ''
+  } catch (error) {
+    console.error('Anthropic unavailable, falling back to demo agent:', error)
+    return runDemoFallback(messages, context)
+  }
+}
+
+function runDemoFallback(messages: Message[], context: AlexContext): string {
+  const firstName = context.employee.name.split(' ')[0]
+  const lastUserMessage = messages.filter(m => m.role === 'user').at(-1)?.content.toLowerCase() ?? ''
+  const device = context.standardConfig.deviceModel
+
+  if (messages.length <= 1) {
+    return `Hi ${firstName} — welcome to FlowSign. I’ve got you set up as a ${context.employee.role} on ${context.employee.team}, starting ${context.employee.startDate}. Your standard setup is a ${device}; does that all look right, and do you have an IDE preference like VS Code, JetBrains, Vim, or something else?`
+  }
+
+  if (lastUserMessage.includes('16') || lastUserMessage.includes('m3 max') || lastUserMessage.includes('max')) {
+    return `Got it — the MacBook Pro 16” M3 Max is a non-standard option for your role. It’s currently out of stock and would add about ${context.stockStatus.procurementDays ?? 7} days through procurement, which could put your start date at risk. Is that a hard requirement for your workflow, or would the standard ${device} work?`
+  }
+
+  if (lastUserMessage.includes('hard requirement') || lastUserMessage.includes('need it') || lastUserMessage.includes('i insist')) {
+    return `Understood. I’ll file this as an exception request and notify both your manager and IT at the same time so they can review it quickly. [EXCEPTION_REQUESTED]`
+  }
+
+  if (lastUserMessage.includes('looks right') || lastUserMessage.includes('yes') || lastUserMessage.includes('standard') || lastUserMessage.includes('works')) {
+    return `Perfect — I’ll keep you on the standard ${device}. I’ll note your preferences and submit this so IT can start prepping your machine. [READY_TO_SUBMIT]`
+  }
+
+  return `Sounds good. I’ve got that noted for your setup. If you’re happy with the standard ${device}, say the word and I’ll submit it; if you want the 16” M3 Max instead, I can start the exception path.`
 }
 
 function buildSystemPrompt(context: AlexContext): string {
