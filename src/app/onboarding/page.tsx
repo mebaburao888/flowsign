@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { useSearchParams } from 'next/navigation'
-import { CheckCircle, Send, Loader2, Laptop, ClipboardList, Sparkles, RotateCcw, DollarSign, Calendar, FileText } from 'lucide-react'
+import { CheckCircle, Send, Loader2, Laptop, ClipboardList, RotateCcw, DollarSign, Calendar, Sparkles } from 'lucide-react'
 
 interface Message {
   role: 'user' | 'assistant'
@@ -395,13 +395,13 @@ export default function OnboardingPage() {
               <div className={`max-w-sm px-4 py-3 text-sm leading-relaxed ${
                 msg.role === 'user' ? 'chat-bubble-user' : 'chat-bubble-alex'
               }`}>
-                <span dangerouslySetInnerHTML={{
+                <div dangerouslySetInnerHTML={{
                   __html: msg.content
                     .replace(/&/g, '&amp;')
                     .replace(/</g, '&lt;')
                     .replace(/>/g, '&gt;')
-                    .replace(/\n- /g, '<br/>• ')
-                    .replace(/^- /g, '• ')
+                    .replace(/\n- /g, '<br/>• ')
+                    .replace(/^- /g, '• ')
                     .replace(/\n/g, '<br/>')
                 }} />
                 {msg.timestamp && (
