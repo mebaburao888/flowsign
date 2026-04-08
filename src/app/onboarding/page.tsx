@@ -24,12 +24,31 @@ interface SessionData {
 
 const EMPLOYEE_ID = 'a1000000-0000-0000-0000-000000000001'
 
-const QUICK_REPLIES = [
-  'Looks right — continue',
-  'Use the standard laptop',
-  'I want the 16” MacBook Pro',
-  'Ship it to my home address',
-]
+function getContextualReplies(lastAssistantMsg: string, messageCount: number): string[] {
+  const msg = lastAssistantMsg.toLowerCase()
+  if (msg.includes('vs code') || msg.includes('ide') || msg.includes('development environment')) {
+    return ['VS Code', 'JetBrains', 'Vim']
+  }
+  if (msg.includes('terminal') || msg.includes('iterm')) {
+    return ['Default terminal', 'iTerm2', 'Warp']
+  }
+  if (msg.includes('claude code')) {
+    return ['Yes, add Claude Code ✨', 'No thanks']
+  }
+  if (msg.includes('ship') || msg.includes('deliver') || msg.includes('pickup') || msg.includes('office')) {
+    return ['Ship to home address', 'Office pickup']
+  }
+  if (msg.includes('out of stock') || msg.includes('procurement') || msg.includes('non-standard') || msg.includes('exception')) {
+    return ["It's a hard requirement", 'Standard laptop is fine']
+  }
+  if (msg.includes('summary') || msg.includes('submit') || msg.includes('confirm') || messageCount > 8) {
+    return ['Looks good — submit it', 'I need to change something']
+  }
+  if ((msg.includes('standard') || msg.includes('macbook') || msg.includes('laptop')) && messageCount < 4) {
+    return ['Standard laptop works for me', 'I want the 16" MacBook Pro']
+  }
+  return ['Looks right — continue', 'Something looks wrong']
+}
 
 export default function OnboardingPage() {
   const searchParams = useSearchParams()
@@ -266,7 +285,7 @@ export default function OnboardingPage() {
         <div className="bg-amber-50 border-b border-amber-200 px-6 py-3 flex items-center gap-3">
           <div className="w-5 h-5 text-amber-500">⚠️</div>
           <span className="text-amber-800 text-sm font-medium">
-            Exception request filed — your manager and IT have been notified simultaneously. You'll hear back within 1 business day.
+            Exception request filed - your manager and IT have been notified simultaneously. You'll hear back within 1 business day.
           </span>
         </div>
       )}
@@ -284,7 +303,7 @@ export default function OnboardingPage() {
                   <p className="font-semibold text-slate-900">Your onboarding checklist</p>
                   <span className="text-[11px] px-2 py-0.5 rounded-full bg-slate-100 text-slate-500">Day 0</span>
                 </div>
-                <p className="text-sm text-slate-600 mb-4">Let’s knock out the laptop setup first so IT can get moving.</p>
+                <p className="text-sm text-slate-600 mb-4">Let's knock out the laptop setup first so IT can get moving.</p>
                 <div className="space-y-2 text-sm">
                   <div className="flex items-center gap-3 rounded-xl bg-brand-50 px-3 py-2 text-brand-700">
                     <CheckCircle className="w-4 h-4" />
@@ -359,7 +378,10 @@ export default function OnboardingPage() {
       {!submitted && !exceptionFiled && messages.length > 0 && (
         <div className="px-4 pb-2">
           <div className="max-w-2xl mx-auto flex flex-wrap gap-2">
-            {QUICK_REPLIES.map(reply => (
+            {getContextualReplies(
+                messages.filter(m => m.role === 'assistant').at(-1)?.content ?? '',
+                messages.length
+              ).map(reply => (
               <button
                 key={reply}
                 onClick={async () => {
