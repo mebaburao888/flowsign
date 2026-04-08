@@ -19,11 +19,9 @@ export async function POST(req: NextRequest) {
       .from('onboarding_sessions')
       .update({
         conversation: messages.concat({ role: 'assistant', content: result.reply }),
-        preferences: {
-          ...(collectedPreferences ?? {}),
-          onboardingThreadId: result.onboardingThreadId,
-          itThreadId: result.itThreadId,
-        },
+        preferences: collectedPreferences ?? {},
+        onboarding_thread_id: result.onboardingThreadId,
+        it_thread_id: result.itThreadId,
         updated_at: new Date().toISOString(),
       })
       .eq('id', sessionId)

@@ -77,23 +77,7 @@ export default function OnboardingPage() {
 
   async function initializeSession() {
     try {
-      const res = await fetch('/api/requests?type=session&employeeId=' + EMPLOYEE_ID)
-      const data = await res.json()
-
-      const configRes = await fetch('/api/agent', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          messages: [],
-          employeeId: EMPLOYEE_ID,
-          sessionId: data.session?.id ?? 'new',
-          phase: 'confirm',
-          collectedPreferences: {},
-          initOnly: true,
-        }),
-      })
-
-      // Init the session via orchestrator
+      // Init session — reuses existing DB session + thread IDs if they exist
       const initRes = await fetch('/api/init', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -101,15 +85,31 @@ export default function OnboardingPage() {
       })
       const initData = await initRes.json()
 
-      setSession({
+      const sessionData: SessionData = {
         employeeId: EMPLOYEE_ID,
         sessionId: initData.session.id,
         onboardingThreadId: initData.onboardingThreadId,
         itThreadId: initData.itThreadId,
         standardConfig: initData.standardConfig,
-      })
+      }
+      setSession(sessionData)
 
-      // Kick off Alex with opening message
+      // Restore saved conversation if it exists (session persistence)
+      const savedConversation: Message[] = Array.isArray(initData.session.conversation)
+        ? initData.session.conversation
+        : []
+
+      if (savedConversation.length > 0) {
+        // Returning user — restore messages, skip opening greeting
+        setMessages(savedConversation)
+        setShowChecklist(false)
+        // Check if already submitted/exception filed
+        const sessionStatus = initData.session.status
+        if (sessionStatus === 'complete') setSubmitted(true)
+        return
+      }
+
+      // New session — kick off Alex with opening message
       const openingMessages: Message[] = []
       if (isException) {
         openingMessages.push({
@@ -123,7 +123,7 @@ export default function OnboardingPage() {
         })
       }
 
-      await sendToAlex(openingMessages, initData.session.id, initData.standardConfig)
+      await sendToAlex(openingMessages, sessionData.sessionId, sessionData.standardConfig, sessionData.onboardingThreadId, sessionData.itThreadId)
     } catch (e) {
       console.error('Init error', e)
     } finally {
@@ -134,7 +134,9 @@ export default function OnboardingPage() {
   async function sendToAlex(
     msgs: Message[],
     sessionId?: string,
-    stdConfig?: SessionData['standardConfig']
+    stdConfig?: SessionData['standardConfig'],
+    onboardingThreadId?: string,
+    itThreadId?: string,
   ) {
     setLoading(true)
     try {
@@ -147,8 +149,8 @@ export default function OnboardingPage() {
           sessionId: sessionId ?? session?.sessionId,
           phase: 'confirm',
           collectedPreferences: preferences,
-          onboardingThreadId: sessionId ? session?.onboardingThreadId : undefined,
-          itThreadId: sessionId ? session?.itThreadId : undefined,
+          onboardingThreadId: onboardingThreadId ?? session?.onboardingThreadId,
+          itThreadId: itThreadId ?? session?.itThreadId,
         }),
       })
       const data = await res.json()
