@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, Suspense } from 'react'
 import { useRouter } from 'next/navigation'
 import { useSearchParams } from 'next/navigation'
 import { CheckCircle, Send, Loader2, Laptop, ClipboardList, RotateCcw, DollarSign, Calendar, Sparkles } from 'lucide-react'
@@ -56,7 +56,7 @@ const NEXT_STEPS = [
   { label: 'Orientation Scheduling', desc: 'Book your Day 1 session', icon: Calendar, href: '/onboarding/orientation' },
 ]
 
-export default function OnboardingPage() {
+function OnboardingPage() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const isException = searchParams.get('scenario') === 'exception'
@@ -458,5 +458,13 @@ export default function OnboardingPage() {
         </div>
       )}
     </div>
+  )
+}
+
+export default function OnboardingPageWrapper() {
+  return (
+    <Suspense fallback={<div className="min-h-screen flex items-center justify-center bg-slate-50"><Loader2 className="w-6 h-6 animate-spin text-brand-500" /></div>}>
+      <OnboardingPage />
+    </Suspense>
   )
 }
