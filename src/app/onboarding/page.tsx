@@ -395,7 +395,15 @@ export default function OnboardingPage() {
               <div className={`max-w-sm px-4 py-3 text-sm leading-relaxed ${
                 msg.role === 'user' ? 'chat-bubble-user' : 'chat-bubble-alex'
               }`}>
-                {msg.content}
+                <span dangerouslySetInnerHTML={{
+                  __html: msg.content
+                    .replace(/&/g, '&amp;')
+                    .replace(/</g, '&lt;')
+                    .replace(/>/g, '&gt;')
+                    .replace(/\n- /g, '<br/>• ')
+                    .replace(/^- /g, '• ')
+                    .replace(/\n/g, '<br/>')
+                }} />
                 {msg.timestamp && (
                   <p className={`text-xs mt-1 ${msg.role === 'user' ? 'text-blue-200' : 'text-slate-400'}`}>
                     {msg.timestamp}
