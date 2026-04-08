@@ -64,6 +64,7 @@ export default function OnboardingPage() {
   const [ticketNumber, setTicketNumber] = useState('')
   const [exceptionFiled, setExceptionFiled] = useState(false)
   const [initializing, setInitializing] = useState(true)
+  const submittingRef = useRef(false) // guard against duplicate ticket submissions
   const bottomRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -195,7 +196,8 @@ export default function OnboardingPage() {
   }
 
   async function handleSubmit(stdConfig?: SessionData['standardConfig']) {
-    if (!session) return
+    if (!session || submittingRef.current) return
+    submittingRef.current = true
     try {
       const res = await fetch('/api/requests', {
         method: 'POST',
@@ -214,11 +216,13 @@ export default function OnboardingPage() {
       setShowChecklist(false)
     } catch (e) {
       console.error('Submit error', e)
+      submittingRef.current = false // allow retry on error
     }
   }
 
   async function handleExceptionSubmit() {
-    if (!session) return
+    if (!session || submittingRef.current) return
+    submittingRef.current = true
     try {
       await fetch('/api/requests', {
         method: 'POST',
@@ -235,6 +239,7 @@ export default function OnboardingPage() {
       setExceptionFiled(true)
     } catch (e) {
       console.error('Exception submit error', e)
+      submittingRef.current = false // allow retry on error
     }
   }
 
@@ -282,11 +287,15 @@ export default function OnboardingPage() {
       )}
 
       {exceptionFiled && (
-        <div className="bg-amber-50 border-b border-amber-200 px-6 py-3 flex items-center gap-3">
-          <div className="w-5 h-5 text-amber-500">⚠️</div>
-          <span className="text-amber-800 text-sm font-medium">
-            Exception request filed - your manager and IT have been notified simultaneously. You'll hear back within 1 business day.
-          </span>
+        <div className="bg-amber-50 border-b border-amber-200 px-6 py-4">
+          <div className="flex items-start gap-3">
+            <div className="w-5 h-5 text-amber-500 mt-0.5">⚠️</div>
+            <div>
+              <p className="text-amber-800 text-sm font-semibold mb-1">Exception request filed</p>
+              <p className="text-amber-700 text-sm">Your manager and IT have been notified simultaneously and will review within 1 business day.</p>
+              <p className="text-amber-600 text-sm mt-2">In the meantime, you can continue your onboarding checklist — the laptop will be sorted in the background. Check your inbox for updates.</p>
+            </div>
+          </div>
         </div>
       )}
 
@@ -375,7 +384,7 @@ export default function OnboardingPage() {
         <div ref={bottomRef} />
       </div>
 
-      {!submitted && !exceptionFiled && messages.length > 0 && (
+      {!submitted && !exceptionFiled && messages.length > 0 && !loading && (
         <div className="px-4 pb-2">
           <div className="max-w-2xl mx-auto flex flex-wrap gap-2">
             {getContextualReplies(

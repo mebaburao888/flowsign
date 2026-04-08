@@ -45,7 +45,7 @@ export async function initSession(employeeId: string) {
     .select()
     .single()
 
-  // Send welcome email
+  // Send welcome email (only on new session)
   try { await email.sendWelcome(employee) } catch (e) { console.error('Welcome email failed', e) }
 
   return { employee, standardConfig, stockStatus: nonStandardStock, session }

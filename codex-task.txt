@@ -1,0 +1,22 @@
+Make the quick reply chips in the onboarding page contextual based on the conversation phase.
+
+Currently in src/app/onboarding/page.tsx, there is a hardcoded QUICK_REPLIES array with 4 fixed options that always show. Replace this with a dynamic getContextualReplies(lastAssistantMessage: string, messageCount: number) function that returns different chips based on context.
+
+Detection logic based on last assistant message content:
+1. If content includes 'VS Code' or 'IDE' or 'development environment' => ['VS Code', 'JetBrains', 'Vim']
+2. If content includes 'terminal' or 'iTerm' => ['Default terminal', 'iTerm2', 'Warp']
+3. If content includes 'Claude Code' => ['Yes, add Claude Code', 'No thanks']
+4. If content includes 'ship' or 'deliver' or 'pickup' or 'office' => ['Ship to home address', 'Office pickup']
+5. If content includes 'out of stock' or 'procurement' or 'non-standard' or 'exception' => ["It's a hard requirement", 'Standard laptop is fine']
+6. If content includes 'summary' or 'submit' or 'confirm' or messageCount > 8 => ['Looks good, submit it', 'I need to change something']
+7. If content includes 'standard' or 'MacBook' or 'laptop' and messageCount < 4 => ['Standard laptop works for me', 'I want the 16" MacBook Pro']
+8. Default (first messages) => ['Looks right, continue', 'Something looks wrong']
+
+In the JSX, replace the static QUICK_REPLIES.map with: getContextualReplies(messages.filter(m => m.role === 'assistant').at(-1)?.content ?? '', messages.length).map(...)
+
+Keep all chip styling identical. Remove the QUICK_REPLIES constant.
+
+Commit: "feat: contextual quick reply chips based on conversation phase"
+Push to origin master.
+
+When completely done, run: openclaw system event --text "Done: contextual chips built and pushed to FlowSign" --mode now

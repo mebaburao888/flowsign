@@ -37,9 +37,15 @@ create table onboarding_sessions (
   status text default 'in_progress', -- in_progress | complete
   conversation jsonb default '[]',
   preferences jsonb default '{}',
+  onboarding_thread_id text,  -- OpenAI thread ID for Alex
+  it_thread_id text,          -- OpenAI thread ID for IT agent
   created_at timestamptz default now(),
   updated_at timestamptz default now()
 );
+
+-- Migration: add thread IDs to existing sessions
+-- alter table onboarding_sessions add column if not exists onboarding_thread_id text;
+-- alter table onboarding_sessions add column if not exists it_thread_id text;
 
 -- DEVICE REQUESTS
 create table device_requests (

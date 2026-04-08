@@ -123,8 +123,24 @@ function extractJsonBlock<T>(text: string, tag: string): T | null {
 
 export async function initializeAssistantSession(employeeId: string) {
   const init = await initSession(employeeId)
-  const onboardingThreadId = await ensureThread()
-  const itThreadId = await ensureThread()
+  const { session } = init
+
+  // Reuse existing thread IDs if session already has them (prevents conversation wipe on reload)
+  const onboardingThreadId = await ensureThread(session.onboarding_thread_id ?? undefined)
+  const itThreadId = await ensureThread(session.it_thread_id ?? undefined)
+
+  // Persist thread IDs back to session if they are new
+  if (!session.onboarding_thread_id || !session.it_thread_id) {
+    const { supabaseAdmin } = await import('../supabase')
+    await supabaseAdmin
+      .from('onboarding_sessions')
+      .update({
+        onboarding_thread_id: onboardingThreadId,
+        it_thread_id: itThreadId,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', session.id)
+  }
 
   return {
     ...init,
