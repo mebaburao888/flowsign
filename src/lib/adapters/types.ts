@@ -103,4 +103,5 @@ export interface EmailAdapter {
   sendApproved(employee: Employee, request: DeviceRequest): Promise<void>
   sendDenied(employee: Employee, reason: string): Promise<void>
   sendConfirmation(employee: Employee, request: DeviceRequest, ticket: string): Promise<void>
+  sendStepComplete(manager: Employee, employee: Employee, stepName: string, completedCount: number): Promise<void>
 }

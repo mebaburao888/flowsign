@@ -70,10 +70,8 @@ export async function POST(req: NextRequest) {
         const employee = await hris.getEmployee(employeeId)
         const manager = await hris.getManager(employeeId)
         const { ResendEmailAdapter } = await import('@/lib/adapters/email/resend')
-        const email = new ResendEmailAdapter() as any
-        if (typeof email.sendStepComplete === 'function') {
-          await email.sendStepComplete(manager, employee, 'Document Signing', 1)
-        }
+        const email = new ResendEmailAdapter()
+        await email.sendStepComplete(manager, employee, 'Document Signing', 1)
       } catch (e) {
         console.error('Step complete email failed', e)
       }
