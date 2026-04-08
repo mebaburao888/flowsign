@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase'
-import { getDocuments, DOC_QA_SYSTEM_PROMPT } from '@/lib/documents'
+import { getDocuments, DOC_QA_SYSTEM_PROMPT, REQUIRED_DOC_IDS } from '@/lib/documents'
 import { FakeHRISAdapter } from '@/lib/adapters/hris/fake'
 
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY?.trim()
@@ -13,7 +13,15 @@ export async function GET(req: NextRequest) {
 
   const employee = await hris.getEmployee(employeeId)
   const docs = getDocuments(employee)
-  return NextResponse.json({ docs })
+
+  // Return which docs are already signed
+  const { data: signed } = await supabaseAdmin
+    .from('signed_documents')
+    .select('doc_id')
+    .eq('employee_id', employeeId)
+  const signedIds = (signed ?? []).map((r: { doc_id: string }) => r.doc_id)
+
+  return NextResponse.json({ docs, signedIds })
 }
 
 export async function POST(req: NextRequest) {
@@ -40,14 +48,14 @@ export async function POST(req: NextRequest) {
       })
     }
 
-    // Check if all docs are signed
+    // Check if all required docs are signed
     const { data: allSigned } = await supabaseAdmin
       .from('signed_documents')
       .select('doc_id')
       .eq('employee_id', employeeId)
 
-    const signedIds = (allSigned ?? []).map((r: { doc_id: string }) => r.doc_id)
-    const allComplete = ['offer_letter', 'nda'].every(id => signedIds.includes(id))
+    const signedIds = [...new Set([...((allSigned ?? []).map((r: { doc_id: string }) => r.doc_id)), docId])]
+    const allComplete = REQUIRED_DOC_IDS.every(id => signedIds.includes(id))
 
     if (allComplete) {
       // Mark doc_signing task as done
@@ -57,19 +65,21 @@ export async function POST(req: NextRequest) {
         .eq('employee_id', employeeId)
         .eq('task_type', 'doc_signing')
 
-      // Notify manager by email
+      // Notify manager
       try {
         const employee = await hris.getEmployee(employeeId)
         const manager = await hris.getManager(employeeId)
         const { ResendEmailAdapter } = await import('@/lib/adapters/email/resend')
-        const email = new ResendEmailAdapter()
-        await (email as any).sendStepComplete?.(manager, employee, 'Document Signing', 1)
+        const email = new ResendEmailAdapter() as any
+        if (typeof email.sendStepComplete === 'function') {
+          await email.sendStepComplete(manager, employee, 'Document Signing', 1)
+        }
       } catch (e) {
         console.error('Step complete email failed', e)
       }
     }
 
-    return NextResponse.json({ success: true, allComplete, signedIds: [...signedIds, docId] })
+    return NextResponse.json({ success: true, allComplete, signedIds })
   }
 
   // Doc Q&A via OpenAI
@@ -84,7 +94,7 @@ export async function POST(req: NextRequest) {
 
     const messages = [
       { role: 'system', content: DOC_QA_SYSTEM_PROMPT },
-      { role: 'user', content: `The employee is currently reviewing: ${docTitle}\n\nDocument content (summarized):\n${docBody.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 2000)}` },
+      { role: 'user', content: `The employee is currently reviewing: ${docTitle}\n\nDocument content:\n${docBody.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 2000)}` },
       ...(history ?? []),
       { role: 'user', content: question },
     ]

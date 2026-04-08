@@ -22,79 +22,72 @@ export function getDocuments(employee: {
 
   return [
     {
-      id: 'offer_letter',
-      title: 'Offer Letter',
-      subtitle: 'Doc 1 of 2',
-      body: `
-        <div style="font-family: 'Georgia', serif; line-height: 1.8; color: #1e293b;">
-          <p style="color: #64748b; font-size: 13px;">${today}</p>
-          <br/>
-          <p>Dear ${employee.name},</p>
-          <p>We are delighted to extend this offer of employment to you at <strong>FlowSign Inc.</strong> We believe your skills and experience will be an excellent addition to our team.</p>
-
-          <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 20px; margin: 20px 0;">
-            <table style="width: 100%; border-collapse: collapse; font-size: 14px;">
-              <tr><td style="padding: 6px 0; color: #64748b; width: 180px;">Position</td><td style="font-weight: 600;">${employee.role}</td></tr>
-              <tr><td style="padding: 6px 0; color: #64748b;">Team</td><td style="font-weight: 600;">${employee.team}</td></tr>
-              <tr><td style="padding: 6px 0; color: #64748b;">Start Date</td><td style="font-weight: 600;">${employee.startDate}</td></tr>
-              <tr><td style="padding: 6px 0; color: #64748b;">Location</td><td style="font-weight: 600;">${employee.location}</td></tr>
-              <tr><td style="padding: 6px 0; color: #64748b;">Reports To</td><td style="font-weight: 600;">${employee.managerName ?? 'Your Manager'}</td></tr>
-              <tr><td style="padding: 6px 0; color: #64748b;">Employment Type</td><td style="font-weight: 600;">Full-Time, At-Will</td></tr>
-            </table>
-          </div>
-
-          <p><strong>Compensation &amp; Benefits</strong><br/>
-          Your compensation package details, including salary and equity, are outlined in your separate compensation letter and are subject to the terms described therein. FlowSign offers a comprehensive benefits package including health, dental, vision, 401(k) with company match, and flexible PTO.</p>
-
-          <p><strong>Conditions of Employment</strong><br/>
-          This offer is contingent upon successful completion of a background check, execution of FlowSign's Confidential Information and Invention Assignment Agreement (CIIAA), and your first day of employment. You will be required to provide proof of eligibility to work in the United States.</p>
-
-          <p><strong>At-Will Employment</strong><br/>
-          Your employment with FlowSign is at-will, meaning either you or FlowSign may terminate the employment relationship at any time, with or without cause or advance notice.</p>
-
-          <p><strong>Entire Agreement</strong><br/>
-          This offer letter, together with the CIIAA, constitutes the entire agreement between you and FlowSign with respect to the subject matter hereof and supersedes all prior and contemporaneous understandings.</p>
-
-          <p>We are thrilled to have you join us. Please sign below to indicate your acceptance of this offer.</p>
-
-          <p style="margin-top: 32px;">Sincerely,<br/>
-          <strong>People Operations</strong><br/>
-          FlowSign Inc.</p>
-        </div>
-      `,
-    },
-    {
       id: 'nda',
-      title: 'Non-Disclosure & Confidentiality Agreement',
-      subtitle: 'Doc 2 of 2',
+      title: 'Confidentiality & NDA',
+      subtitle: 'Doc 1 of 2',
       body: `
         <div style="font-family: 'Georgia', serif; line-height: 1.8; color: #1e293b;">
           <p style="color: #64748b; font-size: 13px; text-transform: uppercase; letter-spacing: 0.05em;">Confidential Information and Invention Assignment Agreement</p>
           <br/>
-          <p>This Confidential Information and Invention Assignment Agreement (<strong>"Agreement"</strong>) is entered into as of ${today} between <strong>FlowSign Inc.</strong> ("Company") and <strong>${employee.name}</strong> ("Employee").</p>
+          <p>This Agreement is entered into as of ${today} between <strong>FlowSign Inc.</strong> ("Company") and <strong>${employee.name}</strong> ("Employee").</p>
 
           <p><strong>1. Confidential Information</strong><br/>
-          Employee agrees to keep confidential and not to disclose, use, copy, publish, summarize, or remove from Company premises any Confidential Information, except as required for the performance of Employee's duties for the Company. "Confidential Information" includes all non-public information relating to the Company's business, technology, customers, employees, finances, and strategic plans.</p>
+          Employee agrees to keep confidential and not to disclose, use, copy, publish, or remove from Company premises any Confidential Information, except as required to perform their duties. "Confidential Information" includes all non-public information relating to the Company's business, technology, customers, employees, finances, and strategic plans.</p>
 
           <p><strong>2. Invention Assignment</strong><br/>
-          Employee agrees that all inventions, developments, improvements, and discoveries conceived, made, or reduced to practice during employment that relate to the Company's current or planned business are the sole property of the Company. Employee hereby assigns all right, title, and interest in such inventions to the Company.</p>
+          All inventions, developments, and discoveries conceived during employment that relate to the Company's business are the sole property of the Company. Employee assigns all rights in such inventions to the Company.</p>
 
           <p><strong>3. Non-Solicitation</strong><br/>
-          During employment and for a period of 12 months thereafter, Employee agrees not to solicit Company employees, contractors, or customers for any competitive purpose.</p>
+          During employment and for 12 months thereafter, Employee agrees not to solicit Company employees, contractors, or customers for any competitive purpose.</p>
 
           <p><strong>4. Return of Property</strong><br/>
-          Upon termination of employment, Employee agrees to promptly return all Company property, including all documents, equipment, and materials containing Confidential Information.</p>
+          Upon termination, Employee will promptly return all Company property, including documents and equipment containing Confidential Information.</p>
 
           <p><strong>5. Prior Obligations</strong><br/>
-          Employee represents that they are not subject to any prior agreements that would conflict with this Agreement or the performance of their duties at FlowSign.</p>
+          Employee confirms they are not subject to prior agreements that conflict with this Agreement or their duties at FlowSign.</p>
 
           <p><strong>6. Governing Law</strong><br/>
-          This Agreement shall be governed by the laws of the State of Delaware, without regard to its conflict of laws provisions.</p>
+          This Agreement is governed by the laws of Delaware, without regard to conflict of law provisions.</p>
 
-          <p><strong>7. Entire Agreement</strong><br/>
-          This Agreement constitutes the entire agreement between the parties with respect to confidentiality and invention assignment, and supersedes all prior discussions and agreements.</p>
+          <p style="margin-top: 32px;">By signing, Employee acknowledges reading, understanding, and agreeing to the terms above.</p>
+          <p><strong>People Operations</strong><br/>FlowSign Inc.</p>
+        </div>
+      `,
+    },
+    {
+      id: 'benefits',
+      title: 'Benefits & Payroll Acknowledgment',
+      subtitle: 'Doc 2 of 2',
+      body: `
+        <div style="font-family: 'Georgia', serif; line-height: 1.8; color: #1e293b;">
+          <p style="color: #64748b; font-size: 13px; text-transform: uppercase; letter-spacing: 0.05em;">Benefits Enrollment & Payroll Authorization</p>
+          <br/>
+          <p>Dear ${employee.name},</p>
+          <p>This document confirms your enrollment in FlowSign's benefits program and authorizes payroll processing effective <strong>${employee.startDate}</strong>.</p>
 
-          <p style="margin-top: 32px;">By signing below, Employee acknowledges reading, understanding, and agreeing to the terms of this Agreement.</p>
+          <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 20px; margin: 20px 0;">
+            <p style="font-weight: 700; margin: 0 0 12px; color: #1e293b;">Your Benefits Package</p>
+            <table style="width: 100%; font-size: 14px; border-collapse: collapse;">
+              <tr><td style="padding: 6px 0; color: #64748b; width: 200px;">Health Insurance</td><td style="font-weight: 600;">Medical, Dental, Vision — Blue Shield PPO</td></tr>
+              <tr><td style="padding: 6px 0; color: #64748b;">401(k)</td><td style="font-weight: 600;">4% company match, vests over 4 years</td></tr>
+              <tr><td style="padding: 6px 0; color: #64748b;">PTO</td><td style="font-weight: 600;">Flexible / Unlimited</td></tr>
+              <tr><td style="padding: 6px 0; color: #64748b;">Parental Leave</td><td style="font-weight: 600;">16 weeks fully paid</td></tr>
+              <tr><td style="padding: 6px 0; color: #64748b;">Learning Budget</td><td style="font-weight: 600;">$2,000/year for courses and conferences</td></tr>
+              <tr><td style="padding: 6px 0; color: #64748b;">Home Office Stipend</td><td style="font-weight: 600;">$500 one-time setup allowance</td></tr>
+              <tr><td style="padding: 6px 0; color: #64748b;">Equity</td><td style="font-weight: 600;">As outlined in your separate equity letter</td></tr>
+            </table>
+          </div>
+
+          <p><strong>Payroll Authorization</strong><br/>
+          By signing this document, you authorize FlowSign Inc. to process your compensation on a bi-weekly basis via direct deposit to your designated bank account. Tax withholdings will follow your W-4 elections submitted separately to Payroll.</p>
+
+          <p><strong>Benefits Enrollment Window</strong><br/>
+          You have 30 days from your start date (${employee.startDate}) to complete benefits enrollment in the HR portal. Elections made during this window take effect on your first day. Outside this window, changes are only permitted during the annual Open Enrollment period.</p>
+
+          <p><strong>Acknowledgment</strong><br/>
+          By signing, you confirm that you have reviewed and understood your benefits package, authorize payroll processing, and agree to complete benefits enrollment within 30 days of your start date.</p>
+
+          <p style="margin-top: 32px;"><strong>People Operations</strong><br/>FlowSign Inc.</p>
         </div>
       `,
     },
@@ -113,3 +106,6 @@ RULES:
 - Be warm and reassuring — signing docs on Day 0 can feel intimidating.
 - If the question is unrelated to the documents, gently redirect: "I'm here to help with your onboarding docs — feel free to ask anything about them."
 `
+
+// All doc IDs that must be signed for doc_signing step to be complete
+export const REQUIRED_DOC_IDS = ['nda', 'benefits']

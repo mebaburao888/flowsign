@@ -1,8 +1,9 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
+import { useRouter } from 'next/navigation'
 import { useSearchParams } from 'next/navigation'
-import { CheckCircle, Send, Loader2, Laptop, ClipboardList, Sparkles, RotateCcw } from 'lucide-react'
+import { CheckCircle, Send, Loader2, Laptop, ClipboardList, Sparkles, RotateCcw, DollarSign, Calendar, FileText } from 'lucide-react'
 
 interface Message {
   role: 'user' | 'assistant'
@@ -50,7 +51,13 @@ function getContextualReplies(lastAssistantMsg: string, messageCount: number): s
   return ['Looks right — continue', 'Something looks wrong']
 }
 
+const NEXT_STEPS = [
+  { label: 'Payroll Setup', desc: 'Direct deposit & tax forms', icon: DollarSign, href: '/onboarding/payroll' },
+  { label: 'Orientation Scheduling', desc: 'Book your Day 1 session', icon: Calendar, href: '/onboarding/orientation' },
+]
+
 export default function OnboardingPage() {
+  const router = useRouter()
   const searchParams = useSearchParams()
   const isException = searchParams.get('scenario') === 'exception'
 
@@ -305,14 +312,29 @@ export default function OnboardingPage() {
       )}
 
       {exceptionFiled && (
-        <div className="bg-amber-50 border-b border-amber-200 px-6 py-4">
-          <div className="flex items-start gap-3">
+        <div className="bg-amber-50 border-b border-amber-200 px-6 py-5">
+          <div className="flex items-start gap-3 mb-4">
             <div className="w-5 h-5 text-amber-500 mt-0.5">⚠️</div>
             <div>
               <p className="text-amber-800 text-sm font-semibold mb-1">Exception request filed</p>
-              <p className="text-amber-700 text-sm">Your manager and IT have been notified simultaneously and will review within 1 business day.</p>
-              <p className="text-amber-600 text-sm mt-2">In the meantime, you can continue your onboarding checklist — the laptop will be sorted in the background. Check your inbox for updates.</p>
+              <p className="text-amber-700 text-sm">Your manager and IT have been notified and will review within 1 business day. Check your inbox for updates.</p>
             </div>
+          </div>
+          <p className="text-amber-700 text-xs font-semibold uppercase tracking-wider mb-2 ml-8">Continue with your onboarding:</p>
+          <div className="ml-8 flex gap-3 flex-wrap">
+            {NEXT_STEPS.map(step => {
+              const Icon = step.icon
+              return (
+                <button key={step.label} onClick={() => router.push(step.href)}
+                  className="flex items-center gap-2.5 bg-white border border-amber-200 hover:border-amber-400 rounded-xl px-4 py-2.5 text-left transition-colors">
+                  <Icon className="w-4 h-4 text-amber-600 flex-shrink-0" />
+                  <div>
+                    <p className="text-amber-900 text-xs font-semibold">{step.label}</p>
+                    <p className="text-amber-600 text-xs">{step.desc}</p>
+                  </div>
+                </button>
+              )
+            })}
           </div>
         </div>
       )}
@@ -402,35 +424,7 @@ export default function OnboardingPage() {
         <div ref={bottomRef} />
       </div>
 
-      {!submitted && !exceptionFiled && messages.length > 0 && !loading && (
-        <div className="px-4 pb-2">
-          <div className="max-w-2xl mx-auto flex flex-wrap gap-2">
-            {getContextualReplies(
-                messages.filter(m => m.role === 'assistant').at(-1)?.content ?? '',
-                messages.length
-              ).map(reply => (
-              <button
-                key={reply}
-                onClick={async () => {
-                  if (loading) return
-                  const userMsg: Message = {
-                    role: 'user',
-                    content: reply,
-                    timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-                  }
-                  const newMessages = [...messages, userMsg]
-                  setMessages(newMessages)
-                  await sendToAlex(newMessages)
-                }}
-                disabled={loading}
-                className="rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs text-slate-600 hover:border-brand-300 hover:text-brand-700 disabled:opacity-50"
-              >
-                {reply}
-              </button>
-            ))}
-          </div>
-        </div>
-      )}
+
 
       {/* Input */}
       {!submitted && !exceptionFiled && (

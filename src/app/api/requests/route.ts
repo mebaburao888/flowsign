@@ -49,7 +49,7 @@ export async function POST(req: NextRequest) {
 
       case 'reset_session': {
         const { supabaseAdmin } = await import('@/lib/supabase')
-        // Clear conversation, thread IDs, and status — keeps employee record intact
+        // Clear conversation, thread IDs, and status
         await supabaseAdmin
           .from('onboarding_sessions')
           .update({
@@ -61,12 +61,22 @@ export async function POST(req: NextRequest) {
             updated_at: new Date().toISOString(),
           })
           .eq('employee_id', body.employeeId)
-        // Also delete any pending/draft device requests for this employee
+        // Delete pending/draft device requests
         await supabaseAdmin
           .from('device_requests')
           .delete()
           .eq('employee_id', body.employeeId)
           .in('status', ['pending', 'approved'])
+        // Clear signed documents so doc signing resets too
+        await supabaseAdmin
+          .from('signed_documents')
+          .delete()
+          .eq('employee_id', body.employeeId)
+        // Reset onboarding tasks back to pending
+        await supabaseAdmin
+          .from('onboarding_tasks')
+          .update({ status: 'pending', metadata: null, updated_at: new Date().toISOString() })
+          .eq('employee_id', body.employeeId)
         return NextResponse.json({ success: true })
       }
 
