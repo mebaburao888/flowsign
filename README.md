@@ -37,11 +37,22 @@ npm install
 
 ### 2. Environment variables
 
-Copy `.env.local.template` to `.env.local` and fill in your keys:
+Copy `.env.local.example` to `.env.local` and fill in your keys:
 
 ```bash
-cp .env.local.template .env.local
+cp .env.local.example .env.local
 ```
+
+Required variables:
+- `NEXT_PUBLIC_SUPABASE_URL`
+- `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+- `SUPABASE_SERVICE_ROLE_KEY`
+- `OPENAI_API_KEY`
+- `OPENAI_ONBOARDING_ASSISTANT_ID`
+- `OPENAI_IT_ASSISTANT_ID`
+- `RESEND_API_KEY`
+- `RESEND_FROM_EMAIL`
+- `NEXT_PUBLIC_APP_URL`
 
 ### 3. Supabase — run the schema
 
@@ -137,6 +148,13 @@ vercel
 Add all `.env.local` variables to Vercel dashboard → Settings → Environment Variables.
 
 ---
+
+## Notes for Demo / Repo Hygiene
+
+- Vercel is now connected to the GitHub repo, so pushes to `master` should auto-deploy.
+- Keep `.vercel/`, `.env*`, and local build output out of git.
+- `.env.local.example` is the shareable template; `.env.local` stays local only.
+- If onboarding copy starts feeling repetitive again, tune `src/lib/agents/alex.ts` and `src/lib/agents/assistantRuntime.ts` together so the UI and agent prompts stay aligned.
 
 ## Stack
 
