@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react'
 import { useSearchParams } from 'next/navigation'
-import { CheckCircle, Send, Loader2 } from 'lucide-react'
+import { CheckCircle, Send, Loader2, Laptop, ClipboardList, Sparkles } from 'lucide-react'
 
 interface Message {
   role: 'user' | 'assistant'
@@ -22,9 +22,14 @@ interface SessionData {
   }
 }
 
-type Phase = 'confirm' | 'preferences' | 'exception_check' | 'complete'
-
 const EMPLOYEE_ID = 'a1000000-0000-0000-0000-000000000001'
+
+const QUICK_REPLIES = [
+  'Looks right — continue',
+  'Use the standard laptop',
+  'I want the 16” MacBook Pro',
+  'Ship it to my home address',
+]
 
 export default function OnboardingPage() {
   const searchParams = useSearchParams()
@@ -34,7 +39,7 @@ export default function OnboardingPage() {
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
   const [session, setSession] = useState<SessionData | null>(null)
-  const [phase, setPhase] = useState<Phase>('confirm')
+  const [showChecklist, setShowChecklist] = useState(true)
   const [preferences, setPreferences] = useState<Record<string, unknown>>({})
   const [submitted, setSubmitted] = useState(false)
   const [ticketNumber, setTicketNumber] = useState('')
@@ -120,7 +125,7 @@ export default function OnboardingPage() {
           messages: msgs,
           employeeId: EMPLOYEE_ID,
           sessionId: sessionId ?? session?.sessionId,
-          phase,
+          phase: 'confirm',
           collectedPreferences: preferences,
           onboardingThreadId: sessionId ? session?.onboardingThreadId : undefined,
           itThreadId: sessionId ? session?.itThreadId : undefined,
@@ -187,7 +192,7 @@ export default function OnboardingPage() {
       const data = await res.json()
       setTicketNumber(data.ticketNumber)
       setSubmitted(true)
-      setPhase('complete')
+      setShowChecklist(false)
     } catch (e) {
       console.error('Submit error', e)
     }
@@ -250,8 +255,8 @@ export default function OnboardingPage() {
         <div className="bg-green-50 border-b border-green-200 px-6 py-3 flex items-center gap-3">
           <CheckCircle className="w-5 h-5 text-green-500" />
           <div>
-            <span className="text-green-800 font-medium text-sm">You're all set! </span>
-            <span className="text-green-600 text-sm">IT is prepping your MacBook Pro. Reference: </span>
+            <span className="text-green-800 font-medium text-sm">Request submitted. </span>
+            <span className="text-green-600 text-sm">IT is prepping your standard laptop. Reference: </span>
             <span className="text-green-800 font-mono text-sm font-medium">{ticketNumber}</span>
           </div>
         </div>
@@ -268,6 +273,37 @@ export default function OnboardingPage() {
 
       {/* Chat area */}
       <div className="flex-1 overflow-y-auto px-4 py-6 max-w-2xl mx-auto w-full">
+        {showChecklist && !submitted && !exceptionFiled && (
+          <div className="bg-white border border-slate-200 rounded-2xl p-5 mb-6 shadow-sm">
+            <div className="flex items-start gap-3">
+              <div className="w-10 h-10 rounded-xl bg-brand-50 text-brand-600 flex items-center justify-center flex-shrink-0">
+                <ClipboardList className="w-5 h-5" />
+              </div>
+              <div className="flex-1">
+                <div className="flex items-center gap-2 mb-2">
+                  <p className="font-semibold text-slate-900">Your onboarding checklist</p>
+                  <span className="text-[11px] px-2 py-0.5 rounded-full bg-slate-100 text-slate-500">Day 0</span>
+                </div>
+                <p className="text-sm text-slate-600 mb-4">Let’s knock out the laptop setup first so IT can get moving.</p>
+                <div className="space-y-2 text-sm">
+                  <div className="flex items-center gap-3 rounded-xl bg-brand-50 px-3 py-2 text-brand-700">
+                    <CheckCircle className="w-4 h-4" />
+                    <span>Review your role and start date</span>
+                  </div>
+                  <div className="flex items-center gap-3 rounded-xl bg-slate-50 px-3 py-2 text-slate-700">
+                    <Laptop className="w-4 h-4" />
+                    <span>Choose standard laptop or request an exception</span>
+                  </div>
+                  <div className="flex items-center gap-3 rounded-xl bg-slate-50 px-3 py-2 text-slate-700">
+                    <Sparkles className="w-4 h-4" />
+                    <span>Set a few setup preferences for IT</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Alex intro card */}
         <div className="flex items-center gap-3 mb-6">
           <div className="w-10 h-10 bg-gradient-to-br from-brand-400 to-brand-600 rounded-full flex items-center justify-center text-white font-bold text-sm flex-shrink-0">
@@ -275,7 +311,7 @@ export default function OnboardingPage() {
           </div>
           <div>
             <p className="font-semibold text-slate-900">Alex</p>
-            <p className="text-slate-400 text-xs">FlowSign Onboarding Guide · Powered by Claude</p>
+            <p className="text-slate-400 text-xs">FlowSign onboarding guide</p>
           </div>
         </div>
 
@@ -319,6 +355,33 @@ export default function OnboardingPage() {
         </div>
         <div ref={bottomRef} />
       </div>
+
+      {!submitted && !exceptionFiled && messages.length > 0 && (
+        <div className="px-4 pb-2">
+          <div className="max-w-2xl mx-auto flex flex-wrap gap-2">
+            {QUICK_REPLIES.map(reply => (
+              <button
+                key={reply}
+                onClick={async () => {
+                  if (loading) return
+                  const userMsg: Message = {
+                    role: 'user',
+                    content: reply,
+                    timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+                  }
+                  const newMessages = [...messages, userMsg]
+                  setMessages(newMessages)
+                  await sendToAlex(newMessages)
+                }}
+                disabled={loading}
+                className="rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs text-slate-600 hover:border-brand-300 hover:text-brand-700 disabled:opacity-50"
+              >
+                {reply}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Input */}
       {!submitted && !exceptionFiled && (

@@ -93,20 +93,20 @@ Open [http://localhost:3000](http://localhost:3000)
 
 ### Standard Path (auto-approval)
 1. Select **Jordan Chen — Standard** on the persona picker
-2. Chat with Alex, pick IDE/terminal/Claude Code
-3. Choose standard device
-4. Watch auto-approval fire and SNow INC ticket generate
+2. Alex starts with a short onboarding checklist, then moves into laptop setup
+3. Choose the standard device and capture setup preferences
+4. Watch the standard request auto-approve and generate a SNow prep ticket
 5. Switch to **Priya** → see the ticket in the SNow tab
 
 ### Exception Path (approval workflow)
 1. Select **Jordan Chen — Exception** on the persona picker
-2. Chat with Alex, request the MacBook Pro 16"
-3. Alex flags it as non-standard, out of stock
-4. Jordan insists — exception filed
-5. Open **two browser windows**: Priya + Marcus
-6. Watch the request appear in **both** simultaneously
-7. Marcus approves → Priya's queue updates live
-8. Priya approves → SNow INC ticket fires, emails send
+2. Request the MacBook Pro 16"
+3. Alex presents a simple choice: stay with standard or file an exception
+4. If Jordan insists, the exception is created for review
+5. Open **two browser windows**: Marcus + Priya
+6. Marcus sees the request in **Needs Your Approval** and approves first
+7. Priya then sees IT approval become actionable
+8. Once both approve, the SNow device/procurement ticket fires and emails send
 
 ---
 

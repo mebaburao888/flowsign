@@ -151,6 +151,11 @@ export default function ITAdminPage() {
       </header>
 
       <div className="max-w-6xl mx-auto p-6">
+        <div className="bg-white rounded-xl border border-slate-200 p-5 mb-6">
+          <p className="text-sm font-semibold text-slate-900">IT workflow</p>
+          <p className="text-sm text-slate-500 mt-1">Exceptions stay pending until both manager and IT approvals are recorded. Standard requests bypass this queue and go straight to prep tickets.</p>
+        </div>
+
         {/* Stats */}
         <div className="grid grid-cols-3 gap-4 mb-6">
           {[
@@ -260,7 +265,12 @@ export default function ITAdminPage() {
                   </div>
 
                   {/* Actions */}
-                  {req.status === 'pending' && !req.it_admin_approval && (
+                  {req.status === 'pending' && !req.manager_approval && !req.it_admin_approval && (
+                    <div className="rounded-lg bg-amber-50 border border-amber-100 px-4 py-3 text-sm text-amber-700">
+                      Waiting on manager approval before IT can finalize this exception.
+                    </div>
+                  )}
+                  {req.status === 'pending' && req.manager_approval && !req.it_admin_approval && (
                     <div className="flex gap-3">
                       <button
                         onClick={() => handleApprove(req.id)}
@@ -268,7 +278,7 @@ export default function ITAdminPage() {
                         className="flex items-center gap-2 bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors disabled:opacity-50"
                       >
                         <CheckCircle className="w-4 h-4" />
-                        Approve
+                        Approve Exception
                       </button>
                       <button
                         onClick={() => handleDeny(req.id)}
@@ -276,7 +286,7 @@ export default function ITAdminPage() {
                         className="flex items-center gap-2 bg-red-50 hover:bg-red-100 text-red-600 px-4 py-2 rounded-lg text-sm font-medium transition-colors disabled:opacity-50"
                       >
                         <XCircle className="w-4 h-4" />
-                        Deny
+                        Deny Exception
                       </button>
                     </div>
                   )}

@@ -98,6 +98,7 @@ export default function HiringManagerPage() {
   const pendingMyApproval = requests.filter(r => !r.manager_approval && r.status === 'pending')
   const awaitingIT = requests.filter(r => r.manager_approval && !r.it_admin_approval && r.status === 'pending')
   const inProgress = requests.filter(r => r.status === 'procurement')
+  const autoApprovedDemoCount = 3
 
   return (
     <div className="min-h-screen bg-slate-50">
@@ -124,17 +125,28 @@ export default function HiringManagerPage() {
 
       <div className="max-w-3xl mx-auto p-6">
         {/* Stats */}
-        <div className="grid grid-cols-3 gap-4 mb-6">
+        <div className="grid grid-cols-4 gap-4 mb-6">
           {[
             { label: 'Needs My Approval', value: pendingMyApproval.length, color: 'text-amber-500', bg: 'bg-amber-50' },
             { label: 'Awaiting IT', value: awaitingIT.length, color: 'text-blue-500', bg: 'bg-blue-50' },
             { label: 'In Procurement', value: inProgress.length, color: 'text-green-500', bg: 'bg-green-50' },
+            { label: 'Auto-Approved Standard', value: autoApprovedDemoCount, color: 'text-slate-700', bg: 'bg-slate-100' },
           ].map(stat => (
             <div key={stat.label} className={`${stat.bg} rounded-xl p-5 border border-white`}>
               <p className={`text-2xl font-bold ${stat.color}`}>{stat.value}</p>
               <p className="text-slate-600 text-sm mt-1">{stat.label}</p>
             </div>
           ))}
+        </div>
+
+        <div className="bg-white rounded-xl border border-slate-200 p-5 mb-6">
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <p className="text-sm font-semibold text-slate-900">Approval logic</p>
+              <p className="text-sm text-slate-500 mt-1">Standard laptop requests are auto-approved. Only non-standard exceptions land here for manager review first.</p>
+            </div>
+            <span className="text-xs bg-slate-100 text-slate-600 px-2 py-1 rounded-full font-medium">Demo workflow</span>
+          </div>
         </div>
 
         {/* Needs action */}
@@ -199,9 +211,12 @@ export default function HiringManagerPage() {
                   )}
 
                   {/* IT status */}
-                  <div className="flex items-center gap-2 text-sm text-slate-500 mb-4">
-                    <Clock className="w-4 h-4" />
-                    <span>IT Admin (Priya) is standing by — will action immediately upon your approval</span>
+                  <div className="rounded-lg bg-blue-50 border border-blue-100 px-4 py-3 mb-4">
+                    <div className="flex items-center gap-2 text-sm text-blue-700">
+                      <Clock className="w-4 h-4" />
+                      <span>Approval chain: Manager review → IT approval → procurement / prep</span>
+                    </div>
+                    <p className="text-xs text-blue-600 mt-1">Nothing auto-approves on the exception path.</p>
                   </div>
 
                   {/* Actions */}

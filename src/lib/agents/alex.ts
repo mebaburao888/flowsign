@@ -77,22 +77,22 @@ function runDemoFallback(messages: Message[], context: AlexContext): string {
   const device = context.standardConfig.deviceModel
 
   if (messages.length <= 1) {
-    return `Hi ${firstName} — welcome to FlowSign. I’ve got you set up as a ${context.employee.role} on ${context.employee.team}, starting ${context.employee.startDate}. Your standard setup is a ${device}; does that all look right, and do you have an IDE preference like VS Code, JetBrains, Vim, or something else?`
+    return `Hi ${firstName} — I’ve got your onboarding checklist ready. You’re joining as a ${context.employee.role} on ${context.employee.team}, starting ${context.employee.startDate}. First up is your laptop setup: your standard option is a ${device}. Does that look right, or do you need something different?`
   }
 
   if (lastUserMessage.includes('16') || lastUserMessage.includes('m3 max') || lastUserMessage.includes('max')) {
-    return `Got it — the MacBook Pro 16” M3 Max is a non-standard option for your role. It’s currently out of stock and would add about ${context.stockStatus.procurementDays ?? 7} days through procurement, which could put your start date at risk. Is that a hard requirement for your workflow, or would the standard ${device} work?`
+    return `Got it — the MacBook Pro 16” M3 Max is a non-standard option for your role. It’s currently out of stock and would add about ${context.stockStatus.procurementDays ?? 7} days through procurement, which could put your start date at risk. If you want, I can file an exception request for manager and IT approval, or we can stick with the standard ${device}.`
   }
 
   if (lastUserMessage.includes('hard requirement') || lastUserMessage.includes('need it') || lastUserMessage.includes('i insist')) {
-    return `Understood. I’ll file this as an exception request and notify both your manager and IT at the same time so they can review it quickly. [EXCEPTION_REQUESTED]`
+    return `Understood. I’ll file this as an exception request so your manager can review it first and IT can take it from there right after. [EXCEPTION_REQUESTED]`
   }
 
   if (lastUserMessage.includes('looks right') || lastUserMessage.includes('yes') || lastUserMessage.includes('standard') || lastUserMessage.includes('works')) {
     return `Perfect — I’ll keep you on the standard ${device}. I’ll note your preferences and submit this so IT can start prepping your machine. [READY_TO_SUBMIT]`
   }
 
-  return `Sounds good. I’ve got that noted for your setup. If you’re happy with the standard ${device}, say the word and I’ll submit it; if you want the 16” M3 Max instead, I can start the exception path.`
+  return `Sounds good. I’ve got that noted. If you want, you can stick with the standard ${device} and I’ll submit it, or I can open an exception request for the 16” model.`
 }
 
 function buildSystemPrompt(context: AlexContext): string {
@@ -120,11 +120,11 @@ STOCK STATUS:
 
 YOUR FLOW:
 
-PHASE 1 — CONFIRM:
-Greet ${employee.name.split(' ')[0]} warmly. Surface their details and ask them to confirm. Keep it brief.
+PHASE 1 — CHECKLIST + CONFIRM:
+Open with a short onboarding checklist frame, then confirm the employee details. Keep it brief and light.
 
 PHASE 2 — STANDARD LOADOUT:
-Present their standard device config clearly. Then ask preference questions ONE AT A TIME:
+Present the standard laptop choice simply, not as a long hardware dump. Then ask preference questions ONE AT A TIME:
 1. IDE preference: VS Code, JetBrains, Vim, or other?
 2. Terminal: Default, iTerm2, or Warp?
 3. Would they like Claude Code pre-installed? (add a subtle 😄)
@@ -137,7 +137,7 @@ If they ask for the non-standard device (${nonStandardDevice}):
 - Tell them it's out of stock, procurement adds ${stockStatus.procurementDays} days
 - Note the start date risk
 - Ask: is this a hard requirement, or would the standard work?
-- If they insist: tell them this requires approval from their manager and IT, both will be notified simultaneously
+- If they insist: tell them this requires approval from their manager first and then IT review
 - If they switch to standard: proceed normally
 
 PHASE 3 — SUMMARY & SUBMIT:
@@ -146,7 +146,8 @@ Summarize everything back clearly. Confirm they're happy. Tell them what happens
 RULES:
 - Never ask for info that's already in the system
 - Never use bullet point lists in your messages — speak naturally
-- Keep messages concise — max 3-4 sentences per turn
+- Do not repeat “welcome aboard” or repeat the same stock/out-of-stock line every turn
+- Keep messages concise — max 2-3 short sentences per turn unless summarizing
 - Be warm but efficient — this should feel like a great first impression
 - When the conversation is complete and ready to submit, end your message with exactly: [READY_TO_SUBMIT]
 - When the user confirms a non-standard exception, end your message with: [EXCEPTION_REQUESTED]
