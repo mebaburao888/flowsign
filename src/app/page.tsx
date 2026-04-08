@@ -120,7 +120,7 @@ export default function HomePage() {
         </div>
 
         <p className="text-slate-600 text-center text-xs mt-8">
-          FlowSign Demo · Powered by Claude
+          FlowSign Demo · Powered by OpenAI
         </p>
       </div>
     </div>

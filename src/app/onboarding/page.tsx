@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react'
 import { useSearchParams } from 'next/navigation'
-import { CheckCircle, Send, Loader2, Laptop, ClipboardList, Sparkles } from 'lucide-react'
+import { CheckCircle, Send, Loader2, Laptop, ClipboardList, Sparkles, RotateCcw } from 'lucide-react'
 
 interface Message {
   role: 'user' | 'assistant'
@@ -270,7 +270,23 @@ export default function OnboardingPage() {
           <span className="text-slate-400 mx-2">·</span>
           <span className="text-slate-500 text-sm">Employee Onboarding</span>
         </div>
-        <div className="ml-auto flex items-center gap-2">
+        <div className="ml-auto flex items-center gap-3">
+          <button
+            onClick={async () => {
+              if (!confirm('Reset conversation and start fresh?')) return
+              await fetch('/api/requests', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ action: 'reset_session', employeeId: EMPLOYEE_ID }),
+              })
+              window.location.reload()
+            }}
+            className="flex items-center gap-1.5 text-slate-400 hover:text-slate-600 text-xs border border-slate-200 hover:border-slate-300 rounded-lg px-2.5 py-1.5 transition-colors"
+            title="Reset conversation"
+          >
+            <RotateCcw className="w-3 h-3" />
+            Reset
+          </button>
           <div className="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center text-white text-xs font-bold">JC</div>
           <span className="text-slate-600 text-sm">Jordan Chen</span>
         </div>

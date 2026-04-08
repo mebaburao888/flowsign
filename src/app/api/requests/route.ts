@@ -47,6 +47,29 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ success: true })
       }
 
+      case 'reset_session': {
+        const { supabaseAdmin } = await import('@/lib/supabase')
+        // Clear conversation, thread IDs, and status — keeps employee record intact
+        await supabaseAdmin
+          .from('onboarding_sessions')
+          .update({
+            conversation: [],
+            preferences: {},
+            onboarding_thread_id: null,
+            it_thread_id: null,
+            status: 'in_progress',
+            updated_at: new Date().toISOString(),
+          })
+          .eq('employee_id', body.employeeId)
+        // Also delete any pending/draft device requests for this employee
+        await supabaseAdmin
+          .from('device_requests')
+          .delete()
+          .eq('employee_id', body.employeeId)
+          .in('status', ['pending', 'approved'])
+        return NextResponse.json({ success: true })
+      }
+
       default:
         return NextResponse.json({ error: 'Unknown action' }, { status: 400 })
     }
