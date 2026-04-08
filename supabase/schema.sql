@@ -86,6 +86,15 @@ create table snow_tickets (
   updated_at timestamptz default now()
 );
 
+-- SIGNED DOCUMENTS
+create table signed_documents (
+  id uuid primary key default gen_random_uuid(),
+  employee_id uuid references employees(id),
+  session_id uuid references onboarding_sessions(id),
+  doc_id text not null, -- offer_letter | nda
+  signed_at timestamptz default now()
+);
+
 -- EMAIL LOG
 create table email_log (
   id uuid primary key default gen_random_uuid(),
@@ -103,6 +112,7 @@ create table email_log (
 alter publication supabase_realtime add table device_requests;
 alter publication supabase_realtime add table snow_tickets;
 alter publication supabase_realtime add table onboarding_sessions;
+alter publication supabase_realtime add table signed_documents;
 
 -- ─────────────────────────────────────
 -- SEED DATA
@@ -116,6 +126,13 @@ insert into employees (id, name, email, role, team, department, start_date, loca
 
 -- Set Jordan's manager to Marcus
 update employees set manager_id = 'a1000000-0000-0000-0000-000000000003' where id = 'a1000000-0000-0000-0000-000000000001';
+
+-- ONBOARDING TASKS (run after creating an onboarding session for Jordan)
+-- insert into onboarding_tasks (employee_id, task_type, title, description, status, owner, priority) values
+--   ('a1000000-0000-0000-0000-000000000001', 'doc_signing', 'Sign Documents', 'Review and sign offer letter and NDA', 'pending', 'employee', 1),
+--   ('a1000000-0000-0000-0000-000000000001', 'device_setup', 'IT Setup', 'Choose and configure your laptop', 'pending', 'employee', 2),
+--   ('a1000000-0000-0000-0000-000000000001', 'payroll_setup', 'Payroll Setup', 'Set up direct deposit and tax forms', 'pending', 'employee', 3),
+--   ('a1000000-0000-0000-0000-000000000001', 'orientation', 'Orientation Scheduling', 'Schedule your Day 1 orientation session', 'pending', 'employee', 4);
 
 -- Device Standards
 insert into device_standards (team, role, device_model, device_spec, standard_apps) values

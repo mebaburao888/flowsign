@@ -124,6 +124,30 @@ export class ResendEmailAdapter implements EmailAdapter {
     })
   }
 
+  async sendStepComplete(manager: Employee, employee: Employee, stepName: string, completedCount: number): Promise<void> {
+    const APP_URL_LOCAL = process.env.NEXT_PUBLIC_APP_URL?.trim() ?? 'http://localhost:3000'
+    await resend.emails.send({
+      from: `FlowSign Onboarding <${FROM}>`,
+      to: manager.email,
+      subject: `${employee.name.split(' ')[0]} completed: ${stepName} ✅`,
+      html: `
+        <div style="font-family: Inter, sans-serif; max-width: 600px; margin: 0 auto; padding: 40px 20px;">
+          <div style="background: #0c81eb; padding: 24px; border-radius: 12px 12px 0 0;">
+            <h1 style="color: white; margin: 0; font-size: 18px;">Onboarding Update — ${employee.name}</h1>
+          </div>
+          <div style="background: #f8fafc; padding: 32px; border-radius: 0 0 12px 12px; border: 1px solid #e2e8f0;">
+            <p style="color: #1e293b;">Hi ${manager.name.split(' ')[0]},</p>
+            <p style="color: #475569;"><strong>${employee.name}</strong> has completed the <strong>${stepName}</strong> step of their onboarding.</p>
+            <div style="background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 8px; padding: 16px; margin: 16px 0;">
+              <p style="margin: 0; color: #166534; font-size: 14px;">✅ ${stepName} — complete</p>
+            </div>
+            <a href="${APP_URL_LOCAL}/hiring-manager" style="display: inline-block; background: #0c81eb; color: white; padding: 12px 24px; border-radius: 8px; text-decoration: none; font-weight: 600; margin-top: 8px;">View Manager Dashboard →</a>
+          </div>
+        </div>
+      `,
+    })
+  }
+
   async sendConfirmation(employee: Employee, request: DeviceRequest, ticket: string): Promise<void> {
     await resend.emails.send({
       from: `FlowSign <${FROM}>`,
