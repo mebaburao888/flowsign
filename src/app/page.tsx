@@ -1,7 +1,6 @@
 'use client'
 
 import { useRouter } from 'next/navigation'
-import { useSignIn } from '@clerk/nextjs'
 
 // Demo personas — Clerk users pre-created in dashboard
 const PERSONAS = [
@@ -10,7 +9,7 @@ const PERSONAS = [
     name: 'Jordan Chen',
     subtitle: 'New Hire — Software Engineer',
     description: 'Standard device path → auto-approval',
-    route: '/onboarding/docs',
+    route: '/onboarding/documents',
     avatar: 'JC',
     color: 'bg-blue-500',
     badge: 'New Hire',
@@ -23,7 +22,7 @@ const PERSONAS = [
     name: 'Jordan Chen',
     subtitle: 'New Hire — Software Engineer',
     description: 'Non-standard device → approval flow',
-    route: '/onboarding/docs?scenario=exception',
+    route: '/onboarding/documents?scenario=exception',
     avatar: 'JC',
     color: 'bg-amber-500',
     badge: 'Exception Path',
