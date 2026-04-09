@@ -130,7 +130,12 @@ export default function OnboardingPage() {
     try {
       const res = await fetch(`/api/tasks?employeeId=${EMPLOYEE_ID}`)
       const data = await res.json()
-      setTasks(data.tasks ?? [])
+      // Enforce canonical order: NDA → Laptop → Payroll → Orientation
+      const ORDER = ['doc_signing', 'device_setup', 'payroll_setup', 'orientation']
+      const sorted = (data.tasks ?? []).sort((a: Task, b: Task) =>
+        ORDER.indexOf(a.task_type) - ORDER.indexOf(b.task_type)
+      )
+      setTasks(sorted)
       setDeviceRequest(data.deviceRequest ?? null)
     } catch (error) {
       console.error('Failed to load onboarding tasks', error)
@@ -142,11 +147,16 @@ export default function OnboardingPage() {
   async function handleReset() {
     if (!confirm('Reset all onboarding progress and start fresh?')) return
     setResetting(true)
-    await fetch('/api/requests', {
+    const res = await fetch('/api/requests', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ action: 'reset_session', employeeId: EMPLOYEE_ID }),
     })
+    if (res.ok) {
+      // Clear local state immediately before reload so nothing stale flashes
+      setDeviceRequest(null)
+      setTasks([])
+    }
     window.location.reload()
   }
 
@@ -214,9 +224,14 @@ export default function OnboardingPage() {
 
             const Icon = config.icon
             const isDone = task.status === 'done'
-            const exceptionState = task.task_type === 'device_setup' && deviceRequest?.request_type === 'exception'
-              ? getExceptionStatusLabel(deviceRequest)
-              : null
+            // Only show exception approval chain when the device_setup task is actively in-progress
+            // (not when it's pending/done, and not when deviceRequest is from a previous reset cycle)
+            const showExceptionState = 
+              task.task_type === 'device_setup' &&
+              task.status === 'in_progress' &&
+              deviceRequest !== null &&
+              deviceRequest.request_type === 'exception'
+            const exceptionState = showExceptionState ? getExceptionStatusLabel(deviceRequest!) : null
 
             return (
               <button
