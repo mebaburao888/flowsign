@@ -49,7 +49,7 @@ export async function POST(req: NextRequest) {
 
       case 'reset_session': {
         const { supabaseAdmin } = await import('@/lib/supabase')
-        const { CANONICAL_TASKS } = await import('@/app/api/tasks/route')
+        const { CANONICAL_TASKS } = await import('@/lib/onboarding-tasks')
         const now = new Date().toISOString()
 
         // 1. Reset conversation session
