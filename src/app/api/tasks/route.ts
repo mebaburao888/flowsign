@@ -33,16 +33,17 @@ type TaskStatus = 'pending' | 'in_progress' | 'blocked' | 'done'
 async function ensureDefaultTasks(employeeId: string) {
   const { data: existing } = await supabaseAdmin
     .from('onboarding_tasks')
-    .select('id')
+    .select('task_type')
     .eq('employee_id', employeeId)
-    .limit(1)
 
-  if ((existing?.length ?? 0) > 0) return
+  const existingTypes = new Set((existing ?? []).map((t: { task_type: string }) => t.task_type))
+  const missing = DEFAULT_TASKS.filter(t => !existingTypes.has(t.task_type))
+  if (missing.length === 0) return
 
   await supabaseAdmin
     .from('onboarding_tasks')
     .insert(
-      DEFAULT_TASKS.map(task => ({
+      missing.map(task => ({
         employee_id: employeeId,
         task_type: task.task_type,
         title: task.title,

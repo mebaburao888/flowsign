@@ -61,12 +61,11 @@ export async function POST(req: NextRequest) {
             updated_at: new Date().toISOString(),
           })
           .eq('employee_id', body.employeeId)
-        // Delete pending/draft device requests
+        // Delete ALL device requests for this employee (full reset)
         await supabaseAdmin
           .from('device_requests')
           .delete()
           .eq('employee_id', body.employeeId)
-          .in('status', ['pending', 'approved'])
         // Clear signed documents so doc signing resets too
         await supabaseAdmin
           .from('signed_documents')
