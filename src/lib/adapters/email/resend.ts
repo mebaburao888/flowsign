@@ -11,6 +11,10 @@ const resend = RESEND_API_KEY ? new Resend(RESEND_API_KEY) : null
 const FROM = process.env.RESEND_FROM_EMAIL?.trim() ?? 'onboarding@resend.dev'
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL?.trim() ?? 'http://localhost:3000'
 
+// Test override: if set, ALL outbound emails go to this address instead
+const TEST_TO = process.env.RESEND_TEST_TO?.trim() ?? null
+const to = (addr: string) => TEST_TO ?? addr
+
 async function sendEmail(payload: Parameters<NonNullable<typeof resend>['emails']['send']>[0]) {
   if (!resend) {
     console.warn('[ResendEmailAdapter] RESEND_API_KEY missing — skipping email:', payload.subject)
@@ -24,7 +28,7 @@ export class ResendEmailAdapter implements EmailAdapter {
   async sendWelcome(employee: Employee): Promise<void> {
     await sendEmail({
       from: `FlowSign Onboarding <${FROM}>`,
-      to: employee.email,
+      to: to(employee.email),
       subject: `Welcome to FlowSign, ${employee.name.split(' ')[0]}! Your onboarding is ready.`,
       html: `
         <div style="font-family: Inter, sans-serif; max-width: 600px; margin: 0 auto; padding: 40px 20px;">
@@ -82,13 +86,13 @@ export class ResendEmailAdapter implements EmailAdapter {
     await Promise.all([
       sendEmail({
         from: `FlowSign <${FROM}>`,
-        to: manager.email,
+        to: to(manager.email),
         subject: `Action Required: ${employee.name} — Non-Standard Device Request`,
         html: emailHtml(manager.name.split(' ')[0]),
       }),
       sendEmail({
         from: `FlowSign <${FROM}>`,
-        to: itAdmin.email,
+        to: to(itAdmin.email),
         subject: `Pending: ${employee.name} — Non-Standard Device (Awaiting Manager Approval)`,
         html: emailHtml(itAdmin.name.split(' ')[0]),
       }),
@@ -98,7 +102,7 @@ export class ResendEmailAdapter implements EmailAdapter {
   async sendApproved(employee: Employee, request: DeviceRequest): Promise<void> {
     await sendEmail({
       from: `FlowSign <${FROM}>`,
-      to: employee.email,
+      to: to(employee.email),
       subject: `Your laptop request has been approved ✓`,
       html: `
         <div style="font-family: Inter, sans-serif; max-width: 600px; margin: 0 auto; padding: 40px 20px;">
@@ -122,7 +126,7 @@ export class ResendEmailAdapter implements EmailAdapter {
   async sendDenied(employee: Employee, reason: string): Promise<void> {
     await sendEmail({
       from: `FlowSign <${FROM}>`,
-      to: employee.email,
+      to: to(employee.email),
       subject: `Update on your laptop request`,
       html: `
         <div style="font-family: Inter, sans-serif; max-width: 600px; margin: 0 auto; padding: 40px 20px;">
@@ -138,7 +142,7 @@ export class ResendEmailAdapter implements EmailAdapter {
     const APP_URL_LOCAL = process.env.NEXT_PUBLIC_APP_URL?.trim() ?? 'http://localhost:3000'
     await sendEmail({
       from: `FlowSign Onboarding <${FROM}>`,
-      to: manager.email,
+      to: to(manager.email),
       subject: `${employee.name.split(' ')[0]} completed: ${stepName} ✅`,
       html: `
         <div style="font-family: Inter, sans-serif; max-width: 600px; margin: 0 auto; padding: 40px 20px;">
@@ -161,7 +165,7 @@ export class ResendEmailAdapter implements EmailAdapter {
   async sendConfirmation(employee: Employee, request: DeviceRequest, ticket: string): Promise<void> {
     await sendEmail({
       from: `FlowSign <${FROM}>`,
-      to: employee.email,
+      to: to(employee.email),
       subject: `You're all set — your laptop is being prepped 🎉`,
       html: `
         <div style="font-family: Inter, sans-serif; max-width: 600px; margin: 0 auto; padding: 40px 20px;">
