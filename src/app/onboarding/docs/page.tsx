@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
-import { CheckCircle, Send, Loader2, FileText, PenLine, ArrowLeft } from 'lucide-react'
+import { CheckCircle, Send, Loader2, FileText, PenLine, ArrowLeft, Home } from 'lucide-react'
 
 interface FlowDoc {
   id: string
