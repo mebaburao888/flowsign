@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { ArrowLeft, Calendar, CheckCircle, Loader2 } from 'lucide-react'
+import { ArrowLeft, Calendar, CheckCircle, Loader2, Home } from 'lucide-react'
 
 const EMPLOYEE_ID = 'a1000000-0000-0000-0000-000000000001'
 
@@ -77,6 +77,9 @@ export default function OrientationPage() {
         <span className="font-semibold text-slate-900">FlowSign</span>
         <span className="text-slate-400 mx-2">·</span>
         <span className="text-slate-500 text-sm">Orientation & Calendar Setup</span>
+        <button onClick={() => router.push('/')} className="ml-auto text-slate-400 hover:text-slate-600 border border-slate-200 rounded-lg p-1.5" title="Switch persona">
+          <Home className="w-4 h-4" />
+        </button>
       </header>
 
       <main className="flex-1 max-w-2xl w-full mx-auto px-6 py-8">

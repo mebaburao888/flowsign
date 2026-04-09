@@ -62,13 +62,26 @@ export async function GET(req: NextRequest) {
 
   await ensureDefaultTasks(employeeId)
 
-  const { data: tasks, error } = await supabaseAdmin
+  const { data: rawTasks, error } = await supabaseAdmin
     .from('onboarding_tasks')
     .select('*')
     .eq('employee_id', employeeId)
     .order('priority', { ascending: true })
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+
+  // Deduplicate by task_type — keep the one with best status (done > in_progress > blocked > pending)
+  const statusRank: Record<string, number> = { done: 4, in_progress: 3, blocked: 2, pending: 1 }
+  const taskMap = new Map<string, typeof rawTasks[0]>()
+  for (const task of (rawTasks ?? [])) {
+    const existing = taskMap.get(task.task_type)
+    if (!existing || (statusRank[task.status] ?? 0) > (statusRank[existing.status] ?? 0)) {
+      taskMap.set(task.task_type, task)
+    }
+  }
+  // Return in canonical order
+  const ORDER = ['doc_signing', 'device_setup', 'payroll_setup', 'orientation']
+  const tasks = ORDER.map(t => taskMap.get(t)).filter(Boolean)
 
   const { data: deviceRequest } = await supabaseAdmin
     .from('device_requests')

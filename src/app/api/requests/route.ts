@@ -71,11 +71,20 @@ export async function POST(req: NextRequest) {
           .from('signed_documents')
           .delete()
           .eq('employee_id', body.employeeId)
-        // Reset onboarding tasks back to pending
+        // Delete ALL tasks and re-seed fresh (eliminates duplicates)
         await supabaseAdmin
           .from('onboarding_tasks')
-          .update({ status: 'pending', metadata: null, updated_at: new Date().toISOString() })
+          .delete()
           .eq('employee_id', body.employeeId)
+        // Re-seed 4 clean tasks
+        await supabaseAdmin
+          .from('onboarding_tasks')
+          .insert([
+            { employee_id: body.employeeId, task_type: 'doc_signing',   title: 'Sign NDA',                      description: 'Review and sign your confidentiality agreement', status: 'pending', owner: 'employee', priority: 1 },
+            { employee_id: body.employeeId, task_type: 'device_setup',  title: 'Laptop setup',                  description: 'Choose your laptop setup and delivery preferences', status: 'pending', owner: 'employee', priority: 2 },
+            { employee_id: body.employeeId, task_type: 'payroll_setup', title: 'Payroll & benefits enrollment', description: 'Complete your payroll and benefits enrollment',        status: 'pending', owner: 'employee', priority: 3 },
+            { employee_id: body.employeeId, task_type: 'orientation',   title: 'Orientation & calendar setup', description: 'Book your orientation sessions and calendar events',  status: 'pending', owner: 'employee', priority: 4 },
+          ])
         return NextResponse.json({ success: true })
       }
 

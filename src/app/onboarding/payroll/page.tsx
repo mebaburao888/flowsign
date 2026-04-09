@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { ArrowLeft, CheckCircle, Loader2, ShieldCheck, Landmark, ReceiptText } from 'lucide-react'
+import { ArrowLeft, CheckCircle, Loader2, ShieldCheck, Landmark, ReceiptText, Home } from 'lucide-react'
 
 const EMPLOYEE_ID = 'a1000000-0000-0000-0000-000000000001'
 
@@ -93,6 +93,9 @@ export default function PayrollPage() {
         <span className="font-semibold text-slate-900">FlowSign</span>
         <span className="text-slate-400 mx-2">·</span>
         <span className="text-slate-500 text-sm">Payroll & Benefits</span>
+        <button onClick={() => router.push('/')} className="ml-auto text-slate-400 hover:text-slate-600 border border-slate-200 rounded-lg p-1.5" title="Switch persona">
+          <Home className="w-4 h-4" />
+        </button>
       </header>
 
       {done && (

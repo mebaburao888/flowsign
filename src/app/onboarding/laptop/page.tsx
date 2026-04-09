@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef, Suspense } from 'react'
 import { useRouter } from 'next/navigation'
-import { Send, Loader2, ArrowLeft, RotateCcw } from 'lucide-react'
+import { Send, Loader2, ArrowLeft, RotateCcw, Home } from 'lucide-react'
 
 const EMPLOYEE_ID = 'a1000000-0000-0000-0000-000000000001'
 
@@ -33,6 +33,7 @@ function LaptopPage() {
   const [preferences, setPreferences] = useState<Record<string, unknown>>({})
   const [submitted, setSubmitted] = useState(false)
   const [exceptionFiled, setExceptionFiled] = useState(false)
+  const [exceptionTicket, setExceptionTicket] = useState<string | null>(null)
   const [denied, setDenied] = useState(false)
   const [initializing, setInitializing] = useState(true)
   const submittingRef = useRef(false)
@@ -132,7 +133,10 @@ function LaptopPage() {
         } : prev)
       }
 
-      const cleanReply = reply.replace('[READY_TO_SUBMIT]', '').replace('[EXCEPTION_REQUESTED]', '').trim()
+      const cleanReply = reply
+        .replace(/\[READY_TO_SUBMIT\]/g, '')
+        .replace(/\[EXCEPTION_REQUESTED\]/g, '')
+        .trim()
       const newMessages = [...msgs, {
         role: 'assistant' as const,
         content: cleanReply,
@@ -181,7 +185,7 @@ function LaptopPage() {
     if (!session || submittingRef.current) return
     submittingRef.current = true
     try {
-      await fetch('/api/requests', {
+      const res = await fetch('/api/requests', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -193,6 +197,8 @@ function LaptopPage() {
           exceptionDevice: 'MacBook Pro 16" M3 Max',
         }),
       })
+      const data = await res.json()
+      setExceptionTicket(data.request?.snowExceptionTicket ?? null)
       setExceptionFiled(true)
     } catch (e) {
       console.error('Exception error', e)
@@ -225,7 +231,7 @@ function LaptopPage() {
     <div className="min-h-screen bg-slate-50 flex flex-col">
       {/* Header */}
       <header className="bg-white border-b border-slate-200 px-6 py-4 flex items-center gap-4">
-        <button onClick={() => router.push('/onboarding')} className="text-slate-400 hover:text-slate-600 transition-colors">
+        <button onClick={() => router.push('/onboarding')} className="text-slate-400 hover:text-slate-600 transition-colors" title="Back to checklist">
           <ArrowLeft className="w-5 h-5" />
         </button>
         <div className="w-8 h-8 bg-brand-500 rounded-lg flex items-center justify-center">
@@ -257,6 +263,9 @@ function LaptopPage() {
           </button>
           <div className="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center text-white text-xs font-bold">JC</div>
           <span className="text-slate-600 text-sm">Jordan Chen</span>
+          <button onClick={() => router.push('/')} className="ml-2 text-slate-400 hover:text-slate-600 transition-colors border border-slate-200 rounded-lg p-1.5" title="Switch persona">
+            <Home className="w-4 h-4" />
+          </button>
         </div>
       </header>
 
@@ -273,6 +282,7 @@ function LaptopPage() {
         <div className="bg-amber-50 border-b border-amber-200 px-6 py-4">
           <p className="text-amber-800 text-sm font-semibold mb-1">⚠️ Exception request filed</p>
           <p className="text-amber-700 text-sm">Your manager and IT have been notified and will review within 1 business day. Check your inbox for updates.</p>
+          {exceptionTicket && <p className="text-amber-600 text-xs mt-1 font-mono">Ticket: {exceptionTicket}</p>}
           <button onClick={() => router.push('/onboarding')} className="mt-3 text-brand-600 text-sm font-medium hover:underline">
             ← Back to checklist to continue other steps
           </button>

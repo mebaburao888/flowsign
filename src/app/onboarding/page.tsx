@@ -14,6 +14,7 @@ import {
   ChevronRight,
   Loader2,
   RotateCcw,
+  Home,
 } from 'lucide-react'
 
 const EMPLOYEE_ID = 'a1000000-0000-0000-0000-000000000001'
@@ -182,6 +183,9 @@ export default function OnboardingPage() {
           </button>
           <div className="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center text-white text-xs font-bold">JC</div>
           <span className="text-slate-600 text-sm">{EMPLOYEE_NAME}</span>
+          <button onClick={() => router.push('/')} className="ml-1 text-slate-400 hover:text-slate-600 border border-slate-200 rounded-lg p-1.5" title="Switch persona">
+            <Home className="w-4 h-4" />
+          </button>
         </div>
       </header>
 
