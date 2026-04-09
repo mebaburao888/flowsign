@@ -1,470 +1,272 @@
 'use client'
 
-import { useState, useEffect, useRef, Suspense } from 'react'
+import { useEffect, useState, type ElementType } from 'react'
 import { useRouter } from 'next/navigation'
-import { useSearchParams } from 'next/navigation'
-import { CheckCircle, Send, Loader2, Laptop, ClipboardList, RotateCcw, DollarSign, Calendar, Sparkles } from 'lucide-react'
-
-interface Message {
-  role: 'user' | 'assistant'
-  content: string
-  timestamp?: string
-}
-
-interface SessionData {
-  employeeId: string
-  sessionId: string
-  onboardingThreadId?: string
-  itThreadId?: string
-  standardConfig: {
-    deviceModel: string
-    deviceSpec: Record<string, string>
-    standardApps: string[]
-  }
-}
+import {
+  CheckCircle,
+  Clock,
+  Circle,
+  AlertCircle,
+  FileText,
+  Laptop,
+  DollarSign,
+  Calendar,
+  ChevronRight,
+  Loader2,
+  RotateCcw,
+} from 'lucide-react'
 
 const EMPLOYEE_ID = 'a1000000-0000-0000-0000-000000000001'
+const EMPLOYEE_NAME = 'Jordan Chen'
 
-function getContextualReplies(lastAssistantMsg: string, messageCount: number): string[] {
-  const msg = lastAssistantMsg.toLowerCase()
-  if (msg.includes('vs code') || msg.includes('ide') || msg.includes('development environment')) {
-    return ['VS Code', 'JetBrains', 'Vim']
-  }
-  if (msg.includes('terminal') || msg.includes('iterm')) {
-    return ['Default terminal', 'iTerm2', 'Warp']
-  }
-  if (msg.includes('claude code')) {
-    return ['Yes, add Claude Code ✨', 'No thanks']
-  }
-  if (msg.includes('ship') || msg.includes('deliver') || msg.includes('pickup') || msg.includes('office')) {
-    return ['Ship to home address', 'Office pickup']
-  }
-  if (msg.includes('out of stock') || msg.includes('procurement') || msg.includes('non-standard') || msg.includes('exception')) {
-    return ["It's a hard requirement", 'Standard laptop is fine']
-  }
-  if (msg.includes('summary') || msg.includes('submit') || msg.includes('confirm') || messageCount > 8) {
-    return ['Looks good — submit it', 'I need to change something']
-  }
-  if ((msg.includes('standard') || msg.includes('macbook') || msg.includes('laptop')) && messageCount < 4) {
-    return ['Standard laptop works for me', 'I want the 16" MacBook Pro']
-  }
-  return ['Looks right — continue', 'Something looks wrong']
+type TaskStatus = 'pending' | 'in_progress' | 'blocked' | 'done'
+
+interface Task {
+  id: string
+  employee_id: string
+  task_type: string
+  title: string
+  description?: string
+  status: TaskStatus
+  priority: number
+  metadata?: Record<string, unknown>
 }
 
-const NEXT_STEPS = [
-  { label: 'Payroll Setup', desc: 'Direct deposit & tax forms', icon: DollarSign, href: '/onboarding/payroll' },
-  { label: 'Orientation Scheduling', desc: 'Book your Day 1 session', icon: Calendar, href: '/onboarding/orientation' },
-]
+interface DeviceRequest {
+  id: string
+  request_type: 'standard' | 'exception'
+  status: 'pending' | 'approved' | 'denied' | 'procurement'
+  manager_approval: string | null
+  it_admin_approval: string | null
+  snow_device_ticket: string | null
+  snow_exception_ticket: string | null
+  in_stock: boolean
+  procurement_days: number | null
+  updated_at: string
+}
 
-function OnboardingPage() {
+const TASK_CONFIG: Record<string, {
+  label: string
+  icon: ElementType
+  route: string
+  desc: string
+  color: string
+}> = {
+  doc_signing: {
+    label: 'Sign NDA',
+    icon: FileText,
+    route: '/onboarding/documents',
+    desc: 'Review and sign your confidentiality agreement',
+    color: 'text-blue-600 bg-blue-50',
+  },
+  device_setup: {
+    label: 'Laptop setup',
+    icon: Laptop,
+    route: '/onboarding/laptop',
+    desc: 'Choose your laptop setup and delivery preferences',
+    color: 'text-purple-600 bg-purple-50',
+  },
+  payroll_setup: {
+    label: 'Payroll & benefits enrollment',
+    icon: DollarSign,
+    route: '/onboarding/payroll',
+    desc: 'Enroll in payroll and benefits',
+    color: 'text-green-600 bg-green-50',
+  },
+  orientation: {
+    label: 'Orientation & calendar setup',
+    icon: Calendar,
+    route: '/onboarding/orientation',
+    desc: 'Schedule orientation and calendar events',
+    color: 'text-amber-600 bg-amber-50',
+  },
+}
+
+function statusLabel(status: TaskStatus) {
+  if (status === 'done') return 'Done'
+  if (status === 'in_progress') return 'In progress'
+  if (status === 'blocked') return 'Blocked'
+  return 'Not started'
+}
+
+function statusPillClass(status: TaskStatus) {
+  if (status === 'done') return 'bg-green-100 text-green-700'
+  if (status === 'in_progress') return 'bg-amber-100 text-amber-700'
+  if (status === 'blocked') return 'bg-red-100 text-red-700'
+  return 'bg-slate-100 text-slate-500'
+}
+
+function getExceptionStatusLabel(dr: DeviceRequest): { label: string; color: string } {
+  if (dr.status === 'procurement') return { label: 'Fully approved — procurement in progress', color: 'text-green-600' }
+  if (dr.status === 'denied') return { label: 'Exception denied — choose standard setup', color: 'text-red-600' }
+  if (dr.it_admin_approval) return { label: 'Fully approved — procurement starting', color: 'text-green-600' }
+  if (dr.manager_approval) return { label: 'Manager approved — awaiting IT approval', color: 'text-blue-600' }
+  return { label: 'Pending manager approval', color: 'text-amber-600' }
+}
+
+function StatusIcon({ status }: { status: TaskStatus }) {
+  if (status === 'done') return <CheckCircle className="w-5 h-5 text-green-500" />
+  if (status === 'in_progress') return <Clock className="w-5 h-5 text-amber-500" />
+  if (status === 'blocked') return <AlertCircle className="w-5 h-5 text-red-500" />
+  return <Circle className="w-5 h-5 text-slate-300" />
+}
+
+export default function OnboardingPage() {
   const router = useRouter()
-  const searchParams = useSearchParams()
-  const isException = searchParams.get('scenario') === 'exception'
-
-  const [messages, setMessages] = useState<Message[]>([])
-  const [input, setInput] = useState('')
-  const [loading, setLoading] = useState(false)
-  const [session, setSession] = useState<SessionData | null>(null)
-  const [showChecklist, setShowChecklist] = useState(true)
-  const [preferences, setPreferences] = useState<Record<string, unknown>>({})
-  const [submitted, setSubmitted] = useState(false)
-  const [ticketNumber, setTicketNumber] = useState('')
-  const [exceptionFiled, setExceptionFiled] = useState(false)
-  const [initializing, setInitializing] = useState(true)
-  const submittingRef = useRef(false) // guard against duplicate ticket submissions
-  const bottomRef = useRef<HTMLDivElement>(null)
+  const [tasks, setTasks] = useState<Task[]>([])
+  const [deviceRequest, setDeviceRequest] = useState<DeviceRequest | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [resetting, setResetting] = useState(false)
 
   useEffect(() => {
-    initializeSession()
+    loadTasks()
+
+    const interval = setInterval(loadTasks, 5000)
+    return () => clearInterval(interval)
   }, [])
 
-  useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
-  }, [messages, loading])
-
-  async function initializeSession() {
+  async function loadTasks() {
     try {
-      // Init session — reuses existing DB session + thread IDs if they exist
-      const initRes = await fetch('/api/init', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ employeeId: EMPLOYEE_ID }),
-      })
-      const initData = await initRes.json()
-
-      const sessionData: SessionData = {
-        employeeId: EMPLOYEE_ID,
-        sessionId: initData.session.id,
-        onboardingThreadId: initData.onboardingThreadId,
-        itThreadId: initData.itThreadId,
-        standardConfig: initData.standardConfig,
-      }
-      setSession(sessionData)
-
-      // Restore saved conversation if it exists (session persistence)
-      const savedConversation: Message[] = Array.isArray(initData.session.conversation)
-        ? initData.session.conversation
-        : []
-
-      if (savedConversation.length > 0) {
-        // Returning user — restore messages, skip opening greeting
-        setMessages(savedConversation)
-        setShowChecklist(false)
-        // Check if already submitted/exception filed
-        const sessionStatus = initData.session.status
-        if (sessionStatus === 'complete') setSubmitted(true)
-        return
-      }
-
-      // New session — kick off Alex with opening message
-      const openingMessages: Message[] = []
-      if (isException) {
-        openingMessages.push({
-          role: 'user',
-          content: 'Hi, I just got hired and wanted to start my onboarding.',
-        })
-      } else {
-        openingMessages.push({
-          role: 'user',
-          content: 'Hi Alex! Ready to get started.',
-        })
-      }
-
-      await sendToAlex(openingMessages, sessionData.sessionId, sessionData.standardConfig, sessionData.onboardingThreadId, sessionData.itThreadId)
-    } catch (e) {
-      console.error('Init error', e)
-    } finally {
-      setInitializing(false)
-    }
-  }
-
-  async function sendToAlex(
-    msgs: Message[],
-    sessionId?: string,
-    stdConfig?: SessionData['standardConfig'],
-    onboardingThreadId?: string,
-    itThreadId?: string,
-  ) {
-    setLoading(true)
-    try {
-      const res = await fetch('/api/agent', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          messages: msgs,
-          employeeId: EMPLOYEE_ID,
-          sessionId: sessionId ?? session?.sessionId,
-          phase: 'confirm',
-          collectedPreferences: preferences,
-          onboardingThreadId: onboardingThreadId ?? session?.onboardingThreadId,
-          itThreadId: itThreadId ?? session?.itThreadId,
-        }),
-      })
+      const res = await fetch(`/api/tasks?employeeId=${EMPLOYEE_ID}`)
       const data = await res.json()
-      const reply = data.reply as string
-
-      if (data.onboardingThreadId || data.itThreadId) {
-        setSession(prev => prev ? {
-          ...prev,
-          onboardingThreadId: data.onboardingThreadId ?? prev.onboardingThreadId,
-          itThreadId: data.itThreadId ?? prev.itThreadId,
-        } : prev)
-      }
-
-      const newMessages = [...msgs, {
-        role: 'assistant' as const,
-        content: reply.replace('[READY_TO_SUBMIT]', '').replace('[EXCEPTION_REQUESTED]', '').trim(),
-        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-      }]
-      setMessages(newMessages)
-
-      if (reply.includes('[READY_TO_SUBMIT]')) {
-        setTimeout(() => handleSubmit(stdConfig), 1000)
-      }
-      if (reply.includes('[EXCEPTION_REQUESTED]')) {
-        await handleExceptionSubmit()
-      }
-    } catch (e) {
-      console.error('Alex error', e)
+      setTasks(data.tasks ?? [])
+      setDeviceRequest(data.deviceRequest ?? null)
+    } catch (error) {
+      console.error('Failed to load onboarding tasks', error)
     } finally {
       setLoading(false)
     }
   }
 
-  async function handleSend() {
-    if (!input.trim() || loading) return
-    const userMsg: Message = {
-      role: 'user',
-      content: input,
-      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-    }
-    const newMessages = [...messages, userMsg]
-    setMessages(newMessages)
-    setInput('')
-    await sendToAlex(newMessages)
+  async function handleReset() {
+    if (!confirm('Reset all onboarding progress and start fresh?')) return
+    setResetting(true)
+    await fetch('/api/requests', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'reset_session', employeeId: EMPLOYEE_ID }),
+    })
+    window.location.reload()
   }
 
-  async function handleSubmit(stdConfig?: SessionData['standardConfig']) {
-    if (!session || submittingRef.current) return
-    submittingRef.current = true
-    try {
-      const res = await fetch('/api/requests', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          action: 'submit_standard',
-          employeeId: EMPLOYEE_ID,
-          sessionId: session.sessionId,
-          preferences,
-          standardConfig: stdConfig ?? session.standardConfig,
-        }),
-      })
-      const data = await res.json()
-      setTicketNumber(data.ticketNumber)
-      setSubmitted(true)
-      setShowChecklist(false)
-    } catch (e) {
-      console.error('Submit error', e)
-      submittingRef.current = false // allow retry on error
-    }
-  }
-
-  async function handleExceptionSubmit() {
-    if (!session || submittingRef.current) return
-    submittingRef.current = true
-    try {
-      await fetch('/api/requests', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          action: 'submit_exception',
-          employeeId: EMPLOYEE_ID,
-          sessionId: session.sessionId,
-          preferences,
-          justification: (preferences.justification as string) ?? 'Local model testing requirements',
-          exceptionDevice: 'MacBook Pro 16" M3 Max',
-        }),
-      })
-      setExceptionFiled(true)
-    } catch (e) {
-      console.error('Exception submit error', e)
-      submittingRef.current = false // allow retry on error
-    }
-  }
-
-  if (initializing) {
+  if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-slate-50">
-        <div className="text-center">
-          <Loader2 className="w-8 h-8 animate-spin text-brand-500 mx-auto mb-3" />
-          <p className="text-slate-500 text-sm">Loading your onboarding portal...</p>
-        </div>
+        <Loader2 className="w-6 h-6 animate-spin text-brand-500" />
       </div>
     )
   }
 
+  const doneCount = tasks.filter(task => task.status === 'done').length
+  const total = tasks.length
+
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col">
-      {/* Header */}
       <header className="bg-white border-b border-slate-200 px-6 py-4 flex items-center gap-4">
         <div className="w-8 h-8 bg-brand-500 rounded-lg flex items-center justify-center">
           <svg width="16" height="16" viewBox="0 0 20 20" fill="none">
             <path d="M4 10h12M10 4l6 6-6 6" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
           </svg>
         </div>
-        <div>
-          <span className="font-semibold text-slate-900">FlowSign</span>
-          <span className="text-slate-400 mx-2">·</span>
-          <span className="text-slate-500 text-sm">Employee Onboarding</span>
-        </div>
+        <span className="font-semibold text-slate-900">FlowSign</span>
+        <span className="text-slate-400 mx-2">·</span>
+        <span className="text-slate-500 text-sm">Onboarding Checklist</span>
         <div className="ml-auto flex items-center gap-3">
           <button
-            onClick={async () => {
-              if (!confirm('Reset conversation and start fresh?')) return
-              await fetch('/api/requests', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ action: 'reset_session', employeeId: EMPLOYEE_ID }),
-              })
-              window.location.reload()
-            }}
+            onClick={handleReset}
+            disabled={resetting}
             className="flex items-center gap-1.5 text-slate-400 hover:text-slate-600 text-xs border border-slate-200 hover:border-slate-300 rounded-lg px-2.5 py-1.5 transition-colors"
-            title="Reset conversation"
           >
             <RotateCcw className="w-3 h-3" />
             Reset
           </button>
           <div className="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center text-white text-xs font-bold">JC</div>
-          <span className="text-slate-600 text-sm">Jordan Chen</span>
+          <span className="text-slate-600 text-sm">{EMPLOYEE_NAME}</span>
         </div>
       </header>
 
-      {/* Completion banner */}
-      {submitted && (
-        <div className="bg-green-50 border-b border-green-200 px-6 py-3 flex items-center gap-3">
-          <CheckCircle className="w-5 h-5 text-green-500" />
-          <div>
-            <span className="text-green-800 font-medium text-sm">Request submitted. </span>
-            <span className="text-green-600 text-sm">IT is prepping your standard laptop. Reference: </span>
-            <span className="text-green-800 font-mono text-sm font-medium">{ticketNumber}</span>
-          </div>
+      <main className="flex-1 max-w-2xl mx-auto w-full px-6 py-10">
+        <div className="mb-8">
+          <h1 className="text-2xl font-bold text-slate-900 mb-1">Welcome, {EMPLOYEE_NAME.split(' ')[0]}! 👋</h1>
+          <p className="text-slate-500">Complete these steps in any order before Day 1.</p>
         </div>
-      )}
 
-      {exceptionFiled && (
-        <div className="bg-amber-50 border-b border-amber-200 px-6 py-5">
-          <div className="flex items-start gap-3 mb-4">
-            <div className="w-5 h-5 text-amber-500 mt-0.5">⚠️</div>
-            <div>
-              <p className="text-amber-800 text-sm font-semibold mb-1">Exception request filed</p>
-              <p className="text-amber-700 text-sm">Your manager and IT have been notified and will review within 1 business day. Check your inbox for updates.</p>
+        {total > 0 && (
+          <div className="bg-white rounded-2xl border border-slate-200 p-5 mb-6 shadow-sm">
+            <div className="flex items-center justify-between mb-3">
+              <span className="text-sm font-semibold text-slate-700">Overall progress</span>
+              <span className="text-sm font-bold text-brand-600">{doneCount} of {total} complete</span>
             </div>
-          </div>
-          <p className="text-amber-700 text-xs font-semibold uppercase tracking-wider mb-2 ml-8">Continue with your onboarding:</p>
-          <div className="ml-8 flex gap-3 flex-wrap">
-            {NEXT_STEPS.map(step => {
-              const Icon = step.icon
-              return (
-                <button key={step.label} onClick={() => router.push(step.href)}
-                  className="flex items-center gap-2.5 bg-white border border-amber-200 hover:border-amber-400 rounded-xl px-4 py-2.5 text-left transition-colors">
-                  <Icon className="w-4 h-4 text-amber-600 flex-shrink-0" />
-                  <div>
-                    <p className="text-amber-900 text-xs font-semibold">{step.label}</p>
-                    <p className="text-amber-600 text-xs">{step.desc}</p>
-                  </div>
-                </button>
-              )
-            })}
-          </div>
-        </div>
-      )}
-
-      {/* Chat area */}
-      <div className="flex-1 overflow-y-auto px-4 py-6 max-w-2xl mx-auto w-full">
-        {showChecklist && !submitted && !exceptionFiled && (
-          <div className="bg-white border border-slate-200 rounded-2xl p-5 mb-6 shadow-sm">
-            <div className="flex items-start gap-3">
-              <div className="w-10 h-10 rounded-xl bg-brand-50 text-brand-600 flex items-center justify-center flex-shrink-0">
-                <ClipboardList className="w-5 h-5" />
-              </div>
-              <div className="flex-1">
-                <div className="flex items-center gap-2 mb-2">
-                  <p className="font-semibold text-slate-900">Your onboarding checklist</p>
-                  <span className="text-[11px] px-2 py-0.5 rounded-full bg-slate-100 text-slate-500">Day 0</span>
-                </div>
-                <p className="text-sm text-slate-600 mb-4">Let's knock out the laptop setup first so IT can get moving.</p>
-                <div className="space-y-2 text-sm">
-                  <div className="flex items-center gap-3 rounded-xl bg-brand-50 px-3 py-2 text-brand-700">
-                    <CheckCircle className="w-4 h-4" />
-                    <span>Review your role and start date</span>
-                  </div>
-                  <div className="flex items-center gap-3 rounded-xl bg-slate-50 px-3 py-2 text-slate-700">
-                    <Laptop className="w-4 h-4" />
-                    <span>Choose standard laptop or request an exception</span>
-                  </div>
-                  <div className="flex items-center gap-3 rounded-xl bg-slate-50 px-3 py-2 text-slate-700">
-                    <Sparkles className="w-4 h-4" />
-                    <span>Set a few setup preferences for IT</span>
-                  </div>
-                </div>
-              </div>
+            <div className="w-full bg-slate-100 rounded-full h-2">
+              <div className="bg-brand-500 h-2 rounded-full transition-all duration-500" style={{ width: `${(doneCount / total) * 100}%` }} />
             </div>
           </div>
         )}
 
-        {/* Alex intro card */}
-        <div className="flex items-center gap-3 mb-6">
-          <div className="w-10 h-10 bg-gradient-to-br from-brand-400 to-brand-600 rounded-full flex items-center justify-center text-white font-bold text-sm flex-shrink-0">
-            A
-          </div>
-          <div>
-            <p className="font-semibold text-slate-900">Alex</p>
-            <p className="text-slate-400 text-xs">FlowSign onboarding guide</p>
-          </div>
-        </div>
+        <div className="space-y-3">
+          {tasks.map(task => {
+            const config = TASK_CONFIG[task.task_type]
+            if (!config) return null
 
-        {/* Messages */}
-        <div className="space-y-4">
-          {messages.map((msg, i) => (
-            <div key={i} className={`flex fade-in ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-              {msg.role === 'assistant' && (
-                <div className="w-7 h-7 bg-gradient-to-br from-brand-400 to-brand-600 rounded-full flex items-center justify-center text-white font-bold text-xs flex-shrink-0 mr-2 mt-1">
-                  A
+            const Icon = config.icon
+            const isDone = task.status === 'done'
+            const exceptionState = task.task_type === 'device_setup' && deviceRequest?.request_type === 'exception'
+              ? getExceptionStatusLabel(deviceRequest)
+              : null
+
+            return (
+              <button
+                key={task.id}
+                onClick={() => router.push(config.route)}
+                className={`w-full text-left bg-white rounded-2xl border p-5 flex items-center gap-4 transition-all shadow-sm ${
+                  isDone
+                    ? 'border-green-200 hover:border-green-300'
+                    : 'border-slate-200 hover:border-brand-300 hover:shadow-md'
+                }`}
+              >
+                <div className={`w-11 h-11 rounded-xl flex items-center justify-center flex-shrink-0 ${isDone ? 'bg-green-50' : config.color}`}>
+                  {isDone ? <CheckCircle className="w-5 h-5 text-green-500" /> : <Icon className="w-5 h-5" />}
                 </div>
-              )}
-              <div className={`max-w-sm px-4 py-3 text-sm leading-relaxed ${
-                msg.role === 'user' ? 'chat-bubble-user' : 'chat-bubble-alex'
-              }`}>
-                <div dangerouslySetInnerHTML={{
-                  __html: msg.content
-                    .replace(/&/g, '&amp;')
-                    .replace(/</g, '&lt;')
-                    .replace(/>/g, '&gt;')
-                    .replace(/\n- /g, '<br/>• ')
-                    .replace(/^- /g, '• ')
-                    .replace(/\n/g, '<br/>')
-                }} />
-                {msg.timestamp && (
-                  <p className={`text-xs mt-1 ${msg.role === 'user' ? 'text-blue-200' : 'text-slate-400'}`}>
-                    {msg.timestamp}
-                  </p>
-                )}
-              </div>
-            </div>
-          ))}
 
-          {/* Typing indicator */}
-          {loading && (
-            <div className="flex items-center gap-2 fade-in">
-              <div className="w-7 h-7 bg-gradient-to-br from-brand-400 to-brand-600 rounded-full flex items-center justify-center text-white font-bold text-xs flex-shrink-0">
-                A
-              </div>
-              <div className="chat-bubble-alex px-4 py-3">
-                <div className="flex gap-1">
-                  <div className="w-2 h-2 bg-slate-400 rounded-full typing-dot"></div>
-                  <div className="w-2 h-2 bg-slate-400 rounded-full typing-dot"></div>
-                  <div className="w-2 h-2 bg-slate-400 rounded-full typing-dot"></div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 mb-1">
+                    <p className={`font-semibold text-sm ${isDone ? 'text-slate-500' : 'text-slate-900'}`}>{config.label}</p>
+                    <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${statusPillClass(task.status)}`}>
+                      {statusLabel(task.status)}
+                    </span>
+                  </div>
+                  <p className="text-slate-500 text-xs">{config.desc}</p>
+                  {exceptionState && task.status !== 'done' && (
+                    <div className="mt-2">
+                      <div className="flex items-center gap-2">
+                        <Clock className="w-3 h-3 text-amber-500 flex-shrink-0" />
+                        <span className={`text-xs font-medium ${exceptionState.color}`}>{exceptionState.label}</span>
+                      </div>
+
+                      <div className="mt-2 grid grid-cols-3 gap-2 text-[11px]">
+                        <div className={`px-2 py-1 rounded-md border ${deviceRequest?.manager_approval ? 'bg-green-50 text-green-700 border-green-200' : 'bg-amber-50 text-amber-700 border-amber-200'}`}>
+                          Manager {deviceRequest?.manager_approval ? 'approved' : 'pending'}
+                        </div>
+                        <div className={`px-2 py-1 rounded-md border ${deviceRequest?.it_admin_approval ? 'bg-green-50 text-green-700 border-green-200' : 'bg-slate-50 text-slate-500 border-slate-200'}`}>
+                          IT {deviceRequest?.it_admin_approval ? 'approved' : 'pending'}
+                        </div>
+                        <div className={`px-2 py-1 rounded-md border ${deviceRequest?.status === 'procurement' ? 'bg-green-50 text-green-700 border-green-200' : 'bg-slate-50 text-slate-500 border-slate-200'}`}>
+                          Procurement {deviceRequest?.status === 'procurement' ? 'started' : 'waiting'}
+                        </div>
+                      </div>
+                    </div>
+                  )}
                 </div>
-              </div>
-            </div>
-          )}
+
+                <div className="flex items-center gap-3 flex-shrink-0">
+                  <StatusIcon status={task.status} />
+                  <ChevronRight className="w-4 h-4 text-slate-300" />
+                </div>
+              </button>
+            )
+          })}
         </div>
-        <div ref={bottomRef} />
-      </div>
-
-
-
-      {/* Input */}
-      {!submitted && !exceptionFiled && (
-        <div className="bg-white border-t border-slate-200 px-4 py-4">
-          <div className="max-w-2xl mx-auto flex gap-3">
-            <input
-              type="text"
-              value={input}
-              onChange={e => setInput(e.target.value)}
-              onKeyDown={e => e.key === 'Enter' && handleSend()}
-              placeholder="Reply to Alex..."
-              className="flex-1 bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent"
-              disabled={loading}
-            />
-            <button
-              onClick={handleSend}
-              disabled={loading || !input.trim()}
-              className="bg-brand-500 hover:bg-brand-600 disabled:opacity-40 text-white rounded-xl px-4 py-3 transition-colors"
-            >
-              <Send className="w-4 h-4" />
-            </button>
-          </div>
-        </div>
-      )}
+      </main>
     </div>
-  )
-}
-
-export default function OnboardingPageWrapper() {
-  return (
-    <Suspense fallback={<div className="min-h-screen flex items-center justify-center bg-slate-50"><Loader2 className="w-6 h-6 animate-spin text-brand-500" /></div>}>
-      <OnboardingPage />
-    </Suspense>
   )
 }

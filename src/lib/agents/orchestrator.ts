@@ -94,6 +94,21 @@ export async function submitStandardRequest(
     .update({ status: 'complete', updated_at: new Date().toISOString() })
     .eq('id', sessionId)
 
+  await supabaseAdmin
+    .from('onboarding_tasks')
+    .update({
+      status: 'done',
+      metadata: {
+        path: 'standard',
+        requestId: request.id,
+        ticketNumber,
+        completedAt: new Date().toISOString(),
+      },
+      updated_at: new Date().toISOString(),
+    })
+    .eq('employee_id', employeeId)
+    .eq('task_type', 'device_setup')
+
   try { await email.sendConfirmation(employee, req, ticketNumber) } catch (e) { console.error('Confirmation email failed', e) }
 
   return { request: req, ticketNumber }
@@ -163,6 +178,24 @@ export async function submitExceptionRequest(
     .update({ snow_exception_ticket: exceptionTicket, updated_at: new Date().toISOString() })
     .eq('id', request.id)
 
+  await supabaseAdmin
+    .from('onboarding_tasks')
+    .update({
+      status: 'in_progress',
+      metadata: {
+        path: 'exception',
+        requestId: request.id,
+        exceptionTicket,
+        approval: {
+          manager: 'pending',
+          it: 'pending',
+        },
+      },
+      updated_at: new Date().toISOString(),
+    })
+    .eq('employee_id', employeeId)
+    .eq('task_type', 'device_setup')
+
   try {
     await email.sendApprovalRequest(manager, itAdminEmployee, req, employee)
   } catch (e) { console.error('Approval email failed', e) }
@@ -215,10 +248,44 @@ export async function approveException(
       .update({ status: 'resolved', updated_at: now })
       .eq('ticket_number', request.snow_exception_ticket)
 
+    await supabaseAdmin
+      .from('onboarding_tasks')
+      .update({
+        status: 'done',
+        metadata: {
+          path: 'exception',
+          requestId,
+          exceptionTicket: request.snow_exception_ticket,
+          ticketNumber,
+          completedAt: now,
+        },
+        updated_at: now,
+      })
+      .eq('employee_id', request.employee_id)
+      .eq('task_type', 'device_setup')
+
     try { await email.sendApproved(employee, { ...req, snowDeviceTicket: ticketNumber }) } catch (e) { console.error('Approved email failed', e) }
 
     return { status: 'fully_approved', ticketNumber }
   }
+
+  await supabaseAdmin
+    .from('onboarding_tasks')
+    .update({
+      status: 'in_progress',
+      metadata: {
+        path: 'exception',
+        requestId,
+        exceptionTicket: request.snow_exception_ticket,
+        approval: {
+          manager: request.manager_approval ? 'approved' : 'pending',
+          it: request.it_admin_approval ? 'approved' : 'pending',
+        },
+      },
+      updated_at: now,
+    })
+    .eq('employee_id', request.employee_id)
+    .eq('task_type', 'device_setup')
 
   return { status: approverRole === 'manager' ? 'manager_approved' : 'it_approved' }
 }
@@ -227,9 +294,11 @@ export async function approveException(
 // Deny exception
 // ─────────────────────────────────────
 export async function denyException(requestId: string, reason: string) {
+  const now = new Date().toISOString()
+
   await supabaseAdmin
     .from('device_requests')
-    .update({ status: 'denied', updated_at: new Date().toISOString() })
+    .update({ status: 'denied', updated_at: now })
     .eq('id', requestId)
 
   const { data: request } = await supabaseAdmin
@@ -239,6 +308,23 @@ export async function denyException(requestId: string, reason: string) {
     .single()
 
   const employee = await hris.getEmployee(request.employee_id)
+
+  await supabaseAdmin
+    .from('onboarding_tasks')
+    .update({
+      status: 'blocked',
+      metadata: {
+        path: 'exception',
+        requestId,
+        exceptionTicket: request.snow_exception_ticket,
+        deniedAt: now,
+        reason,
+      },
+      updated_at: now,
+    })
+    .eq('employee_id', request.employee_id)
+    .eq('task_type', 'device_setup')
+
   try { await email.sendDenied(employee, reason) } catch (e) { console.error('Denied email failed', e) }
 }
 

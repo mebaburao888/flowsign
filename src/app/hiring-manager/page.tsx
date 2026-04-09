@@ -26,10 +26,18 @@ interface DeviceRequest {
   }
 }
 
+interface OnboardingTask {
+  id: string
+  task_type: string
+  title: string
+  status: 'pending' | 'in_progress' | 'blocked' | 'done'
+}
+
 const MARCUS_ID = 'a1000000-0000-0000-0000-000000000003'
 
 export default function HiringManagerPage() {
   const [requests, setRequests] = useState<DeviceRequest[]>([])
+  const [tasks, setTasks] = useState<OnboardingTask[]>([])
   const [loading, setLoading] = useState(true)
   const [actioning, setActioning] = useState<string | null>(null)
   const [approvedIds, setApprovedIds] = useState<string[]>([])
@@ -42,9 +50,16 @@ export default function HiringManagerPage() {
 
   async function loadData() {
     try {
-      const res = await fetch('/api/requests?type=pending_exceptions')
-      const data = await res.json()
-      setRequests(data.requests ?? [])
+      const [reqRes, taskRes] = await Promise.all([
+        fetch('/api/requests?type=pending_exceptions'),
+        fetch('/api/tasks?employeeId=a1000000-0000-0000-0000-000000000001'),
+      ])
+
+      const reqData = await reqRes.json()
+      const taskData = await taskRes.json()
+
+      setRequests(reqData.requests ?? [])
+      setTasks(taskData.tasks ?? [])
     } catch (e) {
       console.error('Load error', e)
     } finally {
@@ -99,6 +114,8 @@ export default function HiringManagerPage() {
   const awaitingIT = requests.filter(r => r.manager_approval && !r.it_admin_approval && r.status === 'pending')
   const inProgress = requests.filter(r => r.status === 'procurement')
   const autoApprovedDemoCount = 3
+  const completedTaskCount = tasks.filter(t => t.status === 'done').length
+  const totalTaskCount = tasks.length
 
   return (
     <div className="min-h-screen bg-slate-50">
@@ -148,6 +165,42 @@ export default function HiringManagerPage() {
             <span className="text-xs bg-slate-100 text-slate-600 px-2 py-1 rounded-full font-medium">Demo workflow</span>
           </div>
         </div>
+
+        {totalTaskCount > 0 && (
+          <div className="bg-white rounded-xl border border-slate-200 p-5 mb-6">
+            <div className="flex items-center justify-between mb-3">
+              <div>
+                <p className="text-sm font-semibold text-slate-900">Jordan onboarding progress</p>
+                <p className="text-xs text-slate-500">Live checklist completion status for your new hire</p>
+              </div>
+              <span className="text-sm font-semibold text-brand-600">{completedTaskCount}/{totalTaskCount}</span>
+            </div>
+
+            <div className="w-full h-2 bg-slate-100 rounded-full mb-4">
+              <div
+                className="h-2 bg-brand-500 rounded-full transition-all"
+                style={{ width: `${(completedTaskCount / totalTaskCount) * 100}%` }}
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-2">
+              {tasks.map(task => (
+                <div key={task.id} className={`rounded-lg border px-3 py-2 text-xs ${
+                  task.status === 'done'
+                    ? 'bg-green-50 border-green-200 text-green-700'
+                    : task.status === 'in_progress'
+                      ? 'bg-amber-50 border-amber-200 text-amber-700'
+                      : task.status === 'blocked'
+                        ? 'bg-red-50 border-red-200 text-red-700'
+                        : 'bg-slate-50 border-slate-200 text-slate-600'
+                }`}>
+                  <p className="font-semibold">{task.title}</p>
+                  <p className="capitalize mt-0.5">{task.status.replace('_', ' ')}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* Needs action */}
         {pendingMyApproval.length > 0 && (

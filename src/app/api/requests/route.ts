@@ -80,6 +80,37 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ success: true })
       }
 
+      case 'reset_laptop': {
+        const { supabaseAdmin } = await import('@/lib/supabase')
+        const now = new Date().toISOString()
+
+        await supabaseAdmin
+          .from('onboarding_sessions')
+          .update({
+            conversation: [],
+            preferences: {},
+            onboarding_thread_id: null,
+            it_thread_id: null,
+            status: 'in_progress',
+            updated_at: now,
+          })
+          .eq('employee_id', body.employeeId)
+
+        await supabaseAdmin
+          .from('device_requests')
+          .delete()
+          .eq('employee_id', body.employeeId)
+          .in('status', ['pending', 'approved', 'denied', 'procurement'])
+
+        await supabaseAdmin
+          .from('onboarding_tasks')
+          .update({ status: 'pending', metadata: null, updated_at: now })
+          .eq('employee_id', body.employeeId)
+          .eq('task_type', 'device_setup')
+
+        return NextResponse.json({ success: true })
+      }
+
       default:
         return NextResponse.json({ error: 'Unknown action' }, { status: 400 })
     }

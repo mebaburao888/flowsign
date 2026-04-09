@@ -54,7 +54,7 @@ export async function POST(req: NextRequest) {
       .select('doc_id')
       .eq('employee_id', employeeId)
 
-    const signedIds = [...new Set([...((allSigned ?? []).map((r: { doc_id: string }) => r.doc_id)), docId])]
+    const signedIds = Array.from(new Set([...(allSigned ?? []).map((r: { doc_id: string }) => r.doc_id), docId]))
     const allComplete = REQUIRED_DOC_IDS.every(id => signedIds.includes(id))
 
     if (allComplete) {
