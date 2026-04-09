@@ -112,6 +112,9 @@ create table email_log (
 alter publication supabase_realtime add table device_requests;
 alter publication supabase_realtime add table snow_tickets;
 alter publication supabase_realtime add table onboarding_sessions;
+
+-- Unique constraint: one task per type per employee (prevents duplicate seeding)
+-- Run once: alter table onboarding_tasks add constraint onboarding_tasks_employee_type_unique unique (employee_id, task_type);
 alter publication supabase_realtime add table signed_documents;
 
 -- ─────────────────────────────────────

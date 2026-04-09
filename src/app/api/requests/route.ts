@@ -49,7 +49,10 @@ export async function POST(req: NextRequest) {
 
       case 'reset_session': {
         const { supabaseAdmin } = await import('@/lib/supabase')
-        // Clear conversation, thread IDs, and status
+        const { CANONICAL_TASKS } = await import('@/app/api/tasks/route')
+        const now = new Date().toISOString()
+
+        // 1. Reset conversation session
         await supabaseAdmin
           .from('onboarding_sessions')
           .update({
@@ -58,33 +61,32 @@ export async function POST(req: NextRequest) {
             onboarding_thread_id: null,
             it_thread_id: null,
             status: 'in_progress',
-            updated_at: new Date().toISOString(),
+            updated_at: now,
           })
           .eq('employee_id', body.employeeId)
-        // Delete ALL device requests for this employee (full reset)
-        await supabaseAdmin
-          .from('device_requests')
-          .delete()
-          .eq('employee_id', body.employeeId)
-        // Clear signed documents so doc signing resets too
-        await supabaseAdmin
-          .from('signed_documents')
-          .delete()
-          .eq('employee_id', body.employeeId)
-        // Delete ALL tasks and re-seed fresh (eliminates duplicates)
+
+        // 2. Wipe all transactional data
+        await Promise.all([
+          supabaseAdmin.from('device_requests').delete().eq('employee_id', body.employeeId),
+          supabaseAdmin.from('signed_documents').delete().eq('employee_id', body.employeeId),
+          supabaseAdmin.from('onboarding_tasks').delete().eq('employee_id', body.employeeId),
+        ])
+
+        // 3. Re-seed exactly 4 canonical tasks in clean pending state
         await supabaseAdmin
           .from('onboarding_tasks')
-          .delete()
-          .eq('employee_id', body.employeeId)
-        // Re-seed 4 clean tasks
-        await supabaseAdmin
-          .from('onboarding_tasks')
-          .insert([
-            { employee_id: body.employeeId, task_type: 'doc_signing',   title: 'Sign NDA',                      description: 'Review and sign your confidentiality agreement', status: 'pending', owner: 'employee', priority: 1 },
-            { employee_id: body.employeeId, task_type: 'device_setup',  title: 'Laptop setup',                  description: 'Choose your laptop setup and delivery preferences', status: 'pending', owner: 'employee', priority: 2 },
-            { employee_id: body.employeeId, task_type: 'payroll_setup', title: 'Payroll & benefits enrollment', description: 'Complete your payroll and benefits enrollment',        status: 'pending', owner: 'employee', priority: 3 },
-            { employee_id: body.employeeId, task_type: 'orientation',   title: 'Orientation & calendar setup', description: 'Book your orientation sessions and calendar events',  status: 'pending', owner: 'employee', priority: 4 },
-          ])
+          .insert(
+            CANONICAL_TASKS.map(task => ({
+              employee_id: body.employeeId,
+              task_type: task.task_type,
+              title: task.title,
+              description: task.description,
+              status: 'pending',
+              owner: 'employee',
+              priority: task.priority,
+            }))
+          )
+
         return NextResponse.json({ success: true })
       }
 

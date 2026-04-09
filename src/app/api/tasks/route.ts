@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase'
 
-const DEFAULT_TASKS = [
+// Canonical 4 tasks — used for both seeding and reset
+export const CANONICAL_TASKS = [
   {
     task_type: 'doc_signing',
     title: 'Sign NDA',
@@ -31,19 +32,12 @@ const DEFAULT_TASKS = [
 type TaskStatus = 'pending' | 'in_progress' | 'blocked' | 'done'
 
 async function ensureDefaultTasks(employeeId: string) {
-  const { data: existing } = await supabaseAdmin
-    .from('onboarding_tasks')
-    .select('task_type')
-    .eq('employee_id', employeeId)
-
-  const existingTypes = new Set((existing ?? []).map((t: { task_type: string }) => t.task_type))
-  const missing = DEFAULT_TASKS.filter(t => !existingTypes.has(t.task_type))
-  if (missing.length === 0) return
-
+  // Upsert on (employee_id, task_type) — idempotent, never creates duplicates
+  // Only inserts if the row doesn't exist; ignores existing rows
   await supabaseAdmin
     .from('onboarding_tasks')
-    .insert(
-      missing.map(task => ({
+    .upsert(
+      CANONICAL_TASKS.map(task => ({
         employee_id: employeeId,
         task_type: task.task_type,
         title: task.title,
@@ -51,7 +45,8 @@ async function ensureDefaultTasks(employeeId: string) {
         status: 'pending',
         owner: 'employee',
         priority: task.priority,
-      }))
+      })),
+      { onConflict: 'employee_id,task_type', ignoreDuplicates: true }
     )
 }
 
