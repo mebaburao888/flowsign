@@ -7,7 +7,7 @@ import { supabaseAdmin } from '../supabase'
 import { FakeHRISAdapter } from '../adapters/hris/fake'
 import { FakeDeviceAdapter } from '../adapters/device/fake'
 import { FakeTicketingAdapter } from '../adapters/ticketing/fake'
-import { ResendEmailAdapter } from '../adapters/email/resend'
+import { HotmailEmailAdapter as ResendEmailAdapter } from '../adapters/email/hotmail'
 import { Employee, DeviceRequest } from '../adapters/types'
 
 const hris = new FakeHRISAdapter()

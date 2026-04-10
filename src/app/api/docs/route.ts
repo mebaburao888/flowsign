@@ -69,7 +69,7 @@ export async function POST(req: NextRequest) {
       try {
         const employee = await hris.getEmployee(employeeId)
         const manager = await hris.getManager(employeeId)
-        const { ResendEmailAdapter } = await import('@/lib/adapters/email/resend')
+        const { HotmailEmailAdapter: ResendEmailAdapter } = await import('@/lib/adapters/email/hotmail')
         const email = new ResendEmailAdapter()
         await email.sendStepComplete(manager, employee, 'Document Signing', 1)
       } catch (e) {
